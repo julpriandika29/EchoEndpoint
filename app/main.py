@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import os
 import secrets
 import sqlite3
 import time
@@ -54,13 +55,58 @@ def utc_now() -> str:
 
 
 def get_endpoint_by_token(token: str) -> Optional[dict]:
-    received_at = utc_now()
     conn = get_connection()
     try:
         row = conn.execute("SELECT * FROM endpoints WHERE token = ?", (token,)).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
+
+
+def get_response_config(token: str) -> Optional[dict]:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT token, status_code, body_json, content_type, updated_at "
+            "FROM webhook_response_config WHERE token = ?",
+            (token,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def validate_status_code(status_code: int) -> bool:
+    return 100 <= status_code <= 599
+
+
+def resolve_response_config(token: str) -> dict:
+    default_body = {"message": "ok"}
+    default_status = 200
+    config = get_response_config(token)
+    if not config:
+        return {"status_code": default_status, "body": default_body}
+
+    status_code = config.get("status_code", default_status)
+    if not isinstance(status_code, int) or not validate_status_code(status_code):
+        return {"status_code": default_status, "body": default_body}
+
+    body_json = config.get("body_json", "")
+    try:
+        body = json.loads(body_json)
+    except (TypeError, json.JSONDecodeError):
+        return {"status_code": default_status, "body": default_body}
+
+    return {"status_code": status_code, "body": body}
+
+
+def require_admin(request: Request) -> None:
+    admin_key = os.getenv("ADMIN_API_KEY")
+    if not admin_key:
+        raise HTTPException(status_code=403, detail="Admin API disabled")
+    provided = request.headers.get("x-api-key")
+    if provided != admin_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @app.on_event("startup")
@@ -199,9 +245,13 @@ async def webhook_receiver(request: Request, token: str) -> Response:
         },
     )
 
+    response_config = resolve_response_config(token)
+    status_code = response_config["status_code"]
+    body = response_config["body"]
+
     if request.method == "HEAD":
-        return Response(status_code=200)
-    return JSONResponse(content={"ok": True})
+        return Response(status_code=status_code)
+    return JSONResponse(content=body, status_code=status_code)
 
 
 @app.get("/events/{token}")
@@ -324,3 +374,70 @@ def export_requests(token: str) -> Response:
     data = json.dumps(payload, ensure_ascii=True).encode("utf-8")
     headers = {"Content-Disposition": f'attachment; filename="requests-{token}.json"'}
     return Response(content=data, media_type="application/json", headers=headers)
+
+
+@app.get("/admin/webhook-response/{token}")
+def get_webhook_response_config(request: Request, token: str) -> JSONResponse:
+    require_admin(request)
+    config = get_response_config(token)
+    if not config:
+        raise HTTPException(status_code=404, detail="Config not found")
+    try:
+        body = json.loads(config["body_json"])
+    except (TypeError, json.JSONDecodeError):
+        raise HTTPException(status_code=500, detail="Invalid stored config")
+    return JSONResponse(
+        content={
+            "token": token,
+            "status_code": config["status_code"],
+            "body": body,
+            "content_type": config["content_type"],
+            "updated_at": config["updated_at"],
+        }
+    )
+
+
+@app.put("/admin/webhook-response/{token}")
+async def set_webhook_response_config(request: Request, token: str) -> JSONResponse:
+    require_admin(request)
+    payload = await request.json()
+    status_code = payload.get("status_code")
+    body = payload.get("body")
+    if not isinstance(status_code, int) or not validate_status_code(status_code):
+        raise HTTPException(status_code=400, detail="Invalid status_code")
+    if body is None:
+        raise HTTPException(status_code=400, detail="Missing body")
+
+    try:
+        body_json = json.dumps(body)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Body must be JSON-serializable")
+
+    updated_at = utc_now()
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO webhook_response_config
+                (token, status_code, body_json, content_type, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (token, status_code, body_json, "application/json", updated_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return JSONResponse(content={"ok": True, "updated_at": updated_at})
+
+
+@app.delete("/admin/webhook-response/{token}")
+def delete_webhook_response_config(request: Request, token: str) -> JSONResponse:
+    require_admin(request)
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM webhook_response_config WHERE token = ?", (token,))
+        conn.commit()
+    finally:
+        conn.close()
+    return JSONResponse(content={"ok": True})

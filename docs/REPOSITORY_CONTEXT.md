@@ -31,7 +31,8 @@
 - `.\.venv\Scripts\Activate.ps1`
 - `pip install -r requirements.txt`
 - `uvicorn app.main:app --reload`
-- Environment variables/config: Not found (searched `README.md` and repo root for `.env` or config files).
+- Environment variables/config:
+  - `ADMIN_API_KEY`: required to use `/admin/webhook-response/{token}` endpoints for per-token response config.
 - Containerization/deployment: Not found (no `Dockerfile`, `docker-compose.yml`, or systemd/k8s manifests).
 
 # Backend Architecture
@@ -42,6 +43,7 @@
 
 # Persistence Layer (SQLite)
 - Schema definition: `app/db.py` via `init_db()` with `CREATE TABLE IF NOT EXISTS` for `endpoints` and `requests`.
+- Additional tables: `webhook_response_config` for per-token response status/body configuration.
 - Migrations: Not found; schema is created on startup in `app/main.py` via `@app.on_event("startup")`.
 - Data access: Inline SQL in `app/main.py`; `app/models.py` holds field name lists but is not used.
 - Connection lifecycle: `get_connection()` returns a new `sqlite3.Connection` with `check_same_thread=False`; each handler opens and closes a connection.
@@ -69,6 +71,7 @@
 - Rate limiting: In-memory `RateLimiter` in `app/main.py` for IP and token.
 - CORS/CSRF: Not configured (no CORS middleware).
 - Secrets: Tokens generated with `secrets.token_urlsafe(32)`.
+- Admin API: `/admin/webhook-response/{token}` requires `ADMIN_API_KEY` in `x-api-key`.
 - XSS surface: UI uses `textContent` for request data in `app/static/app.js` (safer), but request contents are still rendered client-side; no server-side sanitization noted.
 
 # Observability

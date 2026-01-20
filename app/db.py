@@ -42,6 +42,14 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_requests_endpoint_id ON requests(endpoint_id);
             CREATE INDEX IF NOT EXISTS idx_requests_received_at ON requests(received_at);
+
+            CREATE TABLE IF NOT EXISTS webhook_response_config (
+                token TEXT PRIMARY KEY,
+                status_code INTEGER NOT NULL,
+                body_json TEXT NOT NULL,
+                content_type TEXT NOT NULL DEFAULT 'application/json',
+                updated_at DATETIME NOT NULL
+            );
             """
         )
         conn.commit()
