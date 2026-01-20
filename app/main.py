@@ -1,7 +1,6 @@
 import asyncio
 import base64
 import json
-import os
 import secrets
 import sqlite3
 import time
@@ -98,15 +97,6 @@ def resolve_response_config(token: str) -> dict:
         return {"status_code": default_status, "body": default_body}
 
     return {"status_code": status_code, "body": body}
-
-
-def require_admin(request: Request) -> None:
-    admin_key = os.getenv("ADMIN_API_KEY")
-    if not admin_key:
-        raise HTTPException(status_code=403, detail="Admin API disabled")
-    provided = request.headers.get("x-api-key")
-    if provided != admin_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @app.on_event("startup")
@@ -376,9 +366,12 @@ def export_requests(token: str) -> Response:
     return Response(content=data, media_type="application/json", headers=headers)
 
 
-@app.get("/admin/webhook-response/{token}")
-def get_webhook_response_config(request: Request, token: str) -> JSONResponse:
-    require_admin(request)
+@app.get("/api/endpoints/{token}/response")
+def get_endpoint_response_config(token: str) -> JSONResponse:
+    endpoint = get_endpoint_by_token(token)
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+
     config = get_response_config(token)
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
@@ -391,15 +384,17 @@ def get_webhook_response_config(request: Request, token: str) -> JSONResponse:
             "token": token,
             "status_code": config["status_code"],
             "body": body,
-            "content_type": config["content_type"],
             "updated_at": config["updated_at"],
         }
     )
 
 
-@app.put("/admin/webhook-response/{token}")
-async def set_webhook_response_config(request: Request, token: str) -> JSONResponse:
-    require_admin(request)
+@app.put("/api/endpoints/{token}/response")
+async def set_endpoint_response_config(request: Request, token: str) -> JSONResponse:
+    endpoint = get_endpoint_by_token(token)
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+
     payload = await request.json()
     status_code = payload.get("status_code")
     body = payload.get("body")
@@ -431,9 +426,12 @@ async def set_webhook_response_config(request: Request, token: str) -> JSONRespo
     return JSONResponse(content={"ok": True, "updated_at": updated_at})
 
 
-@app.delete("/admin/webhook-response/{token}")
-def delete_webhook_response_config(request: Request, token: str) -> JSONResponse:
-    require_admin(request)
+@app.delete("/api/endpoints/{token}/response")
+def delete_endpoint_response_config(token: str) -> JSONResponse:
+    endpoint = get_endpoint_by_token(token)
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+
     conn = get_connection()
     try:
         conn.execute("DELETE FROM webhook_response_config WHERE token = ?", (token,))

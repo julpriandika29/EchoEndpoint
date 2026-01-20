@@ -2,6 +2,7 @@
 - This is a FastAPI service that generates unique webhook endpoints, captures incoming HTTP requests, and stores them in a local SQLite database. A browser dashboard renders a split-pane UI with a request list and detailed inspector, similar to webhook.site.
 - The core request capture flow is handled in `app/main.py`, which persists request metadata, raw bodies, and headers, then broadcasts events over SSE to live dashboards.
 - The system serves HTML templates and static assets directly from the FastAPI app without a build step.
+- Webhook responses default to `200` with `{"message":"ok"}` and can be overridden per token via `/api/endpoints/{token}/response`.
 
 # Tech Stack
 - Python version: Not found (searched `README.md`, `requirements.txt`, and repo root for version pins).
@@ -31,8 +32,7 @@
 - `.\.venv\Scripts\Activate.ps1`
 - `pip install -r requirements.txt`
 - `uvicorn app.main:app --reload`
-- Environment variables/config:
-  - `ADMIN_API_KEY`: required to use `/admin/webhook-response/{token}` endpoints for per-token response config.
+- Environment variables/config: Not found (searched `README.md` and repo root for `.env` or config files).
 - Containerization/deployment: Not found (no `Dockerfile`, `docker-compose.yml`, or systemd/k8s manifests).
 
 # Backend Architecture
@@ -58,7 +58,8 @@
 # Dashboard UI
 - UI location: Jinja2 templates in `app/templates/` and static assets in `app/static/`.
 - Pages/routes: `/` renders `app/templates/index.html`; `/e/{token}` renders `app/templates/dashboard.html`.
-- Data sources: `app/static/app.js` calls `/api/endpoints/{token}/requests`, `/api/requests/{id}`, `/api/endpoints/{token}/clear`, `/api/endpoints/{token}/export`, and subscribes to `/events/{token}`.
+- Data sources: `app/static/app.js` calls `/api/endpoints/{token}/requests`, `/api/requests/{id}`, `/api/endpoints/{token}/clear`, `/api/endpoints/{token}/export`, `/api/endpoints/{token}/response`, and subscribes to `/events/{token}`.
+- Response settings: `/e/{token}` includes a response configuration panel that sets per-token status/body stored in SQLite.
 - Auth/session: Not found; dashboard relies on token in URL; no cookies/sessions.
 
 # Testing & Quality
@@ -71,7 +72,6 @@
 - Rate limiting: In-memory `RateLimiter` in `app/main.py` for IP and token.
 - CORS/CSRF: Not configured (no CORS middleware).
 - Secrets: Tokens generated with `secrets.token_urlsafe(32)`.
-- Admin API: `/admin/webhook-response/{token}` requires `ADMIN_API_KEY` in `x-api-key`.
 - XSS surface: UI uses `textContent` for request data in `app/static/app.js` (safer), but request contents are still rendered client-side; no server-side sanitization noted.
 
 # Observability

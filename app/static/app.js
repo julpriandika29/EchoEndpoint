@@ -20,10 +20,21 @@ const detailBody = document.getElementById("detail-body");
 const detailBodyRaw = document.getElementById("detail-body-raw");
 const detailBodyMeta = document.getElementById("detail-body-meta");
 
+const responseStatusInput = document.getElementById("response-status-code");
+const responseBodyInput = document.getElementById("response-body");
+const responseSaveBtn = document.getElementById("response-save");
+const responseResetBtn = document.getElementById("response-reset");
+const responseStatusText = document.getElementById("response-status-text");
+
 const copyBtn = document.getElementById("copy-url");
 const exportBtn = document.getElementById("export-json");
 const clearBtn = document.getElementById("clear-requests");
 const loadMoreBtn = document.getElementById("load-more");
+
+const defaultResponse = {
+  statusCode: 200,
+  body: { message: "ok" },
+};
 
 function formatTimestamp(iso) {
   if (!iso) return "unknown";
@@ -173,6 +184,83 @@ function setupSSE() {
   });
 }
 
+function setResponseForm(statusCode, body) {
+  responseStatusInput.value = String(statusCode);
+  responseBodyInput.value = JSON.stringify(body, null, 2);
+}
+
+function setResponseStatus(message, isError = false) {
+  responseStatusText.textContent = message;
+  responseStatusText.classList.toggle("error", isError);
+}
+
+async function loadResponseConfig() {
+  try {
+    const res = await fetch(`/api/endpoints/${state.token}/response`);
+    if (res.status === 404) {
+      setResponseForm(defaultResponse.statusCode, defaultResponse.body);
+      setResponseStatus("Using default response");
+      return;
+    }
+    if (!res.ok) {
+      setResponseStatus("Failed to load response config", true);
+      return;
+    }
+    const data = await res.json();
+    setResponseForm(data.status_code, data.body);
+    setResponseStatus("Custom response loaded");
+  } catch (err) {
+    setResponseStatus("Failed to load response config", true);
+  }
+}
+
+responseSaveBtn.addEventListener("click", async () => {
+  const statusCode = Number(responseStatusInput.value);
+  if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) {
+    setResponseStatus("Status code must be between 100 and 599", true);
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(responseBodyInput.value);
+  } catch (err) {
+    setResponseStatus("Body must be valid JSON", true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/endpoints/${state.token}/response`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status_code: statusCode, body }),
+    });
+    if (!res.ok) {
+      setResponseStatus("Failed to save response config", true);
+      return;
+    }
+    setResponseStatus("Response saved");
+  } catch (err) {
+    setResponseStatus("Failed to save response config", true);
+  }
+});
+
+responseResetBtn.addEventListener("click", async () => {
+  try {
+    const res = await fetch(`/api/endpoints/${state.token}/response`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      setResponseStatus("Failed to reset response config", true);
+      return;
+    }
+    setResponseForm(defaultResponse.statusCode, defaultResponse.body);
+    setResponseStatus("Reset to default");
+  } catch (err) {
+    setResponseStatus("Failed to reset response config", true);
+  }
+});
+
 copyBtn.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(state.webhookUrl);
@@ -206,3 +294,4 @@ loadMoreBtn.addEventListener("click", async () => {
 
 fetchList(true);
 setupSSE();
+loadResponseConfig();

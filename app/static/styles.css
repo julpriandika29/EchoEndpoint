@@ -370,9 +370,50 @@ button.danger {
   align-items: center;
 }
 
-#detail-body-meta {
+#detail-body-meta,
+.response-status {
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.response-status.error {
+  color: var(--accent-soft);
+}
+
+.response-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.response-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.response-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.response-field input,
+.response-field textarea {
+  background: #0f1116;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+}
+
+.response-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 900px) {

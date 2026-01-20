@@ -74,6 +74,27 @@
             <h4>Body (Raw)</h4>
             <pre id="detail-body-raw"></pre>
           </div>
+
+          <div class="detail-card response-settings">
+            <div class="card-head">
+              <h4>Response Settings</h4>
+              <span class="response-status" id="response-status-text"></span>
+            </div>
+            <div class="response-grid">
+              <label class="response-field">
+                <span>Status Code</span>
+                <input type="number" id="response-status-code" min="100" max="599" />
+              </label>
+              <label class="response-field">
+                <span>JSON Body</span>
+                <textarea id="response-body" rows="6"></textarea>
+              </label>
+            </div>
+            <div class="response-actions">
+              <button class="ghost" id="response-save">Save</button>
+              <button class="ghost" id="response-reset">Reset to Default</button>
+            </div>
+          </div>
         </div>
       </section>
     </main>
