@@ -80,23 +80,32 @@ def validate_status_code(status_code: int) -> bool:
 
 
 def resolve_response_config(token: str) -> dict:
-    default_body = {"message": "ok"}
+    default_body_text = json.dumps({"message": "ok"})
     default_status = 200
+    default_content_type = "application/json"
     config = get_response_config(token)
     if not config:
-        return {"status_code": default_status, "body": default_body}
+        return {
+            "status_code": default_status,
+            "body": default_body_text,
+            "content_type": default_content_type,
+        }
 
     status_code = config.get("status_code", default_status)
     if not isinstance(status_code, int) or not validate_status_code(status_code):
-        return {"status_code": default_status, "body": default_body}
+        status_code = default_status
 
-    body_json = config.get("body_json", "")
-    try:
-        body = json.loads(body_json)
-    except (TypeError, json.JSONDecodeError):
-        return {"status_code": default_status, "body": default_body}
+    content_type = config.get("content_type") or default_content_type
+    if not isinstance(content_type, str) or not content_type.strip():
+        content_type = default_content_type
 
-    return {"status_code": status_code, "body": body}
+    body_text = config.get("body_json", default_body_text)
+    if body_text is None:
+        body_text = ""
+    if not isinstance(body_text, str):
+        body_text = str(body_text)
+
+    return {"status_code": status_code, "body": body_text, "content_type": content_type}
 
 
 @app.on_event("startup")
@@ -237,11 +246,24 @@ async def webhook_receiver(request: Request, token: str) -> Response:
 
     response_config = resolve_response_config(token)
     status_code = response_config["status_code"]
-    body = response_config["body"]
+    body_text = response_config["body"]
+    content_type = response_config["content_type"]
 
     if request.method == "HEAD":
         return Response(status_code=status_code)
-    return JSONResponse(content=body, status_code=status_code)
+
+    if content_type == "application/json":
+        try:
+            body_obj = json.loads(body_text)
+        except (TypeError, json.JSONDecodeError):
+            return Response(
+                content=body_text,
+                media_type="application/json",
+                status_code=status_code,
+            )
+        return JSONResponse(content=body_obj, status_code=status_code)
+
+    return Response(content=body_text, media_type=content_type, status_code=status_code)
 
 
 @app.get("/events/{token}")
@@ -375,15 +397,12 @@ def get_endpoint_response_config(token: str) -> JSONResponse:
     config = get_response_config(token)
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
-    try:
-        body = json.loads(config["body_json"])
-    except (TypeError, json.JSONDecodeError):
-        raise HTTPException(status_code=500, detail="Invalid stored config")
     return JSONResponse(
         content={
             "token": token,
             "status_code": config["status_code"],
-            "body": body,
+            "body": config["body_json"],
+            "content_type": config.get("content_type") or "application/json",
             "updated_at": config["updated_at"],
         }
     )
@@ -397,16 +416,22 @@ async def set_endpoint_response_config(request: Request, token: str) -> JSONResp
 
     payload = await request.json()
     status_code = payload.get("status_code")
-    body = payload.get("body")
+    body = payload.get("body", "")
+    content_type = payload.get("content_type") or "application/json"
     if not isinstance(status_code, int) or not validate_status_code(status_code):
         raise HTTPException(status_code=400, detail="Invalid status_code")
     if body is None:
-        raise HTTPException(status_code=400, detail="Missing body")
+        body_text = ""
+    elif isinstance(body, str):
+        body_text = body
+    else:
+        try:
+            body_text = json.dumps(body)
+        except (TypeError, ValueError):
+            body_text = str(body)
 
-    try:
-        body_json = json.dumps(body)
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Body must be JSON-serializable")
+    if not isinstance(content_type, str) or not content_type.strip():
+        content_type = "application/json"
 
     updated_at = utc_now()
     conn = get_connection()
@@ -417,7 +442,7 @@ async def set_endpoint_response_config(request: Request, token: str) -> JSONResp
                 (token, status_code, body_json, content_type, updated_at)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (token, status_code, body_json, "application/json", updated_at),
+            (token, status_code, body_text, content_type, updated_at),
         )
         conn.commit()
     finally:

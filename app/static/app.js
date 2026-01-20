@@ -20,11 +20,22 @@ const detailBody = document.getElementById("detail-body");
 const detailBodyRaw = document.getElementById("detail-body-raw");
 const detailBodyMeta = document.getElementById("detail-body-meta");
 
-const responseStatusInput = document.getElementById("response-status-code");
 const responseBodyInput = document.getElementById("response-body");
 const responseSaveBtn = document.getElementById("response-save");
 const responseResetBtn = document.getElementById("response-reset");
 const responseStatusText = document.getElementById("response-status-text");
+
+const statusDropdown = document.getElementById("status-dropdown");
+const statusSelected = document.getElementById("status-selected");
+const statusSearch = document.getElementById("status-search");
+const statusOptionsEl = document.getElementById("status-options");
+const statusSearchWarning = document.getElementById("status-search-warning");
+
+const contentTypeDropdown = document.getElementById("content-type-dropdown");
+const contentTypeSelected = document.getElementById("content-type-selected");
+const contentTypeSearch = document.getElementById("content-type-search");
+const contentTypeOptionsEl = document.getElementById("content-type-options");
+const contentTypeSearchWarning = document.getElementById("content-type-search-warning");
 
 const copyBtn = document.getElementById("copy-url");
 const exportBtn = document.getElementById("export-json");
@@ -33,8 +44,42 @@ const loadMoreBtn = document.getElementById("load-more");
 
 const defaultResponse = {
   statusCode: 200,
-  body: { message: "ok" },
+  bodyText: '{"message":"ok"}',
+  contentType: "application/json",
 };
+
+const statusOptions = [
+  { code: 200, label: "OK" },
+  { code: 201, label: "Created" },
+  { code: 202, label: "Accepted" },
+  { code: 204, label: "No Content" },
+  { code: 301, label: "Moved Permanently" },
+  { code: 302, label: "Found" },
+  { code: 304, label: "Not Modified" },
+  { code: 400, label: "Bad Request" },
+  { code: 401, label: "Unauthorized" },
+  { code: 403, label: "Forbidden" },
+  { code: 404, label: "Not Found" },
+  { code: 409, label: "Conflict" },
+  { code: 422, label: "Unprocessable Entity" },
+  { code: 429, label: "Too Many Requests" },
+  { code: 500, label: "Internal Server Error" },
+  { code: 502, label: "Bad Gateway" },
+  { code: 503, label: "Service Unavailable" },
+  { code: 504, label: "Gateway Timeout" },
+];
+
+const contentTypeOptions = [
+  "application/json",
+  "text/plain",
+  "text/html",
+  "application/xml",
+  "application/x-www-form-urlencoded",
+  "application/octet-stream",
+];
+
+let selectedStatusCode = defaultResponse.statusCode;
+let selectedContentType = defaultResponse.contentType;
 
 function formatTimestamp(iso) {
   if (!iso) return "unknown";
@@ -184,9 +229,104 @@ function setupSSE() {
   });
 }
 
-function setResponseForm(statusCode, body) {
-  responseStatusInput.value = String(statusCode);
-  responseBodyInput.value = JSON.stringify(body, null, 2);
+function setStatusSelection(statusCode) {
+  const match = statusOptions.find((item) => item.code === statusCode);
+  selectedStatusCode = match ? match.code : defaultResponse.statusCode;
+  const label = match ? `${match.code} - ${match.label}` : `${defaultResponse.statusCode} - OK`;
+  statusSelected.textContent = label;
+}
+
+function setContentTypeSelection(value) {
+  const match = contentTypeOptions.find((item) => item === value);
+  selectedContentType = match || defaultResponse.contentType;
+  contentTypeSelected.textContent = selectedContentType;
+}
+
+function renderStatusOptions() {
+  const pattern = statusSearch.value.trim();
+  let regex = null;
+  let invalid = false;
+  if (pattern) {
+    let source = pattern;
+    if (!source.startsWith("^")) {
+      source = `^${source}`;
+    }
+    try {
+      regex = new RegExp(source, "i");
+    } catch (err) {
+      invalid = true;
+    }
+  }
+  statusSearchWarning.hidden = !invalid;
+  statusOptionsEl.innerHTML = "";
+  statusOptions.forEach((item) => {
+    const codeStr = String(item.code);
+    let match = true;
+    if (pattern) {
+      if (regex) {
+        match = regex.test(codeStr);
+      } else {
+        match = codeStr.toLowerCase().startsWith(pattern.toLowerCase());
+      }
+    }
+    if (!match) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${item.code} - ${item.label}`;
+    button.addEventListener("click", () => {
+      setStatusSelection(item.code);
+      statusDropdown.open = false;
+    });
+    statusOptionsEl.appendChild(button);
+  });
+}
+
+function renderContentTypeOptions() {
+  const pattern = contentTypeSearch.value.trim();
+  let regex = null;
+  let invalid = false;
+  if (pattern) {
+    try {
+      regex = new RegExp(pattern, "i");
+    } catch (err) {
+      invalid = true;
+    }
+  }
+  contentTypeSearchWarning.hidden = !invalid;
+  contentTypeOptionsEl.innerHTML = "";
+  contentTypeOptions.forEach((item) => {
+    let match = true;
+    if (pattern) {
+      if (regex) {
+        match = regex.test(item);
+      } else {
+        match = item.toLowerCase().includes(pattern.toLowerCase());
+      }
+    }
+    if (!match) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = item;
+    button.addEventListener("click", () => {
+      setContentTypeSelection(item);
+      contentTypeDropdown.open = false;
+    });
+    contentTypeOptionsEl.appendChild(button);
+  });
+}
+
+function setResponseForm(statusCode, bodyText, contentType) {
+  setStatusSelection(statusCode);
+  setContentTypeSelection(contentType);
+  let bodyValue = bodyText;
+  if (typeof bodyValue !== "string") {
+    try {
+      bodyValue = JSON.stringify(bodyValue, null, 2);
+    } catch (err) {
+      bodyValue = String(bodyValue);
+    }
+  }
+  responseBodyInput.value = bodyValue;
 }
 
 function setResponseStatus(message, isError = false) {
@@ -198,7 +338,11 @@ async function loadResponseConfig() {
   try {
     const res = await fetch(`/api/endpoints/${state.token}/response`);
     if (res.status === 404) {
-      setResponseForm(defaultResponse.statusCode, defaultResponse.body);
+      setResponseForm(
+        defaultResponse.statusCode,
+        defaultResponse.bodyText,
+        defaultResponse.contentType
+      );
       setResponseStatus("Using default response");
       return;
     }
@@ -207,7 +351,7 @@ async function loadResponseConfig() {
       return;
     }
     const data = await res.json();
-    setResponseForm(data.status_code, data.body);
+    setResponseForm(data.status_code, data.body, data.content_type || defaultResponse.contentType);
     setResponseStatus("Custom response loaded");
   } catch (err) {
     setResponseStatus("Failed to load response config", true);
@@ -215,25 +359,20 @@ async function loadResponseConfig() {
 }
 
 responseSaveBtn.addEventListener("click", async () => {
-  const statusCode = Number(responseStatusInput.value);
+  const statusCode = selectedStatusCode;
   if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) {
-    setResponseStatus("Status code must be between 100 and 599", true);
+    setResponseStatus("Select a valid status code", true);
     return;
   }
 
-  let body;
-  try {
-    body = JSON.parse(responseBodyInput.value);
-  } catch (err) {
-    setResponseStatus("Body must be valid JSON", true);
-    return;
-  }
+  const body = responseBodyInput.value;
+  const contentType = selectedContentType;
 
   try {
     const res = await fetch(`/api/endpoints/${state.token}/response`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status_code: statusCode, body }),
+      body: JSON.stringify({ status_code: statusCode, body, content_type: contentType }),
     });
     if (!res.ok) {
       setResponseStatus("Failed to save response config", true);
@@ -254,7 +393,11 @@ responseResetBtn.addEventListener("click", async () => {
       setResponseStatus("Failed to reset response config", true);
       return;
     }
-    setResponseForm(defaultResponse.statusCode, defaultResponse.body);
+    setResponseForm(
+      defaultResponse.statusCode,
+      defaultResponse.bodyText,
+      defaultResponse.contentType
+    );
     setResponseStatus("Reset to default");
   } catch (err) {
     setResponseStatus("Failed to reset response config", true);
@@ -291,6 +434,17 @@ clearBtn.addEventListener("click", async () => {
 loadMoreBtn.addEventListener("click", async () => {
   await fetchList(true);
 });
+
+setResponseForm(
+  defaultResponse.statusCode,
+  defaultResponse.bodyText,
+  defaultResponse.contentType
+);
+renderStatusOptions();
+renderContentTypeOptions();
+
+statusSearch.addEventListener("input", renderStatusOptions);
+contentTypeSearch.addEventListener("input", renderContentTypeOptions);
 
 fetchList(true);
 setupSSE();

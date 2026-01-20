@@ -81,12 +81,42 @@
               <span class="response-status" id="response-status-text"></span>
             </div>
             <div class="response-grid">
-              <label class="response-field">
+              <div class="response-field">
                 <span>Status Code</span>
-                <input type="number" id="response-status-code" min="100" max="599" />
-              </label>
+                <details class="dropdown" id="status-dropdown">
+                  <summary class="dropdown-toggle" id="status-selected"></summary>
+                  <div class="dropdown-panel">
+                    <input
+                      type="text"
+                      id="status-search"
+                      placeholder="Filter by status code regex"
+                    />
+                    <span class="filter-warning" id="status-search-warning" hidden>
+                      Invalid regex; using starts-with
+                    </span>
+                    <div class="dropdown-options" id="status-options"></div>
+                  </div>
+                </details>
+              </div>
+              <div class="response-field">
+                <span>Content Type</span>
+                <details class="dropdown" id="content-type-dropdown">
+                  <summary class="dropdown-toggle" id="content-type-selected"></summary>
+                  <div class="dropdown-panel">
+                    <input
+                      type="text"
+                      id="content-type-search"
+                      placeholder="Filter by content type regex"
+                    />
+                    <span class="filter-warning" id="content-type-search-warning" hidden>
+                      Invalid regex; using contains
+                    </span>
+                    <div class="dropdown-options" id="content-type-options"></div>
+                  </div>
+                </details>
+              </div>
               <label class="response-field">
-                <span>JSON Body</span>
+                <span>Body</span>
                 <textarea id="response-body" rows="6"></textarea>
               </label>
             </div>

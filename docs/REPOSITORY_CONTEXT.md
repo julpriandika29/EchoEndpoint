@@ -2,7 +2,7 @@
 - This is a FastAPI service that generates unique webhook endpoints, captures incoming HTTP requests, and stores them in a local SQLite database. A browser dashboard renders a split-pane UI with a request list and detailed inspector, similar to webhook.site.
 - The core request capture flow is handled in `app/main.py`, which persists request metadata, raw bodies, and headers, then broadcasts events over SSE to live dashboards.
 - The system serves HTML templates and static assets directly from the FastAPI app without a build step.
-- Webhook responses default to `200` with `{"message":"ok"}` and can be overridden per token via `/api/endpoints/{token}/response`.
+- Webhook responses default to `200` with `{"message":"ok"}` and can be overridden per token via `/api/endpoints/{token}/response` with status code, body text, and content type.
 
 # Tech Stack
 - Python version: Not found (searched `README.md`, `requirements.txt`, and repo root for version pins).
@@ -59,7 +59,7 @@
 - UI location: Jinja2 templates in `app/templates/` and static assets in `app/static/`.
 - Pages/routes: `/` renders `app/templates/index.html`; `/e/{token}` renders `app/templates/dashboard.html`.
 - Data sources: `app/static/app.js` calls `/api/endpoints/{token}/requests`, `/api/requests/{id}`, `/api/endpoints/{token}/clear`, `/api/endpoints/{token}/export`, `/api/endpoints/{token}/response`, and subscribes to `/events/{token}`.
-- Response settings: `/e/{token}` includes a response configuration panel that sets per-token status/body stored in SQLite.
+- Response settings: `/e/{token}` includes a response configuration panel with status code and content type dropdowns plus a raw body editor; body is stored as text.
 - Auth/session: Not found; dashboard relies on token in URL; no cookies/sessions.
 
 # Testing & Quality
