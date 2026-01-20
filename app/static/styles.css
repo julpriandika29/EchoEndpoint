@@ -135,6 +135,8 @@ body {
   border-bottom: 1px solid var(--border);
   background: rgba(15, 17, 22, 0.9);
   backdrop-filter: blur(8px);
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -212,7 +214,7 @@ button.danger {
 
 .panel {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: minmax(240px, 320px) 1fr;
   gap: 1.5rem;
   padding: 1.5rem 2rem 2.5rem;
   flex: 1;
@@ -381,5 +383,35 @@ button.danger {
   .webhook-bar {
     grid-template-columns: 1fr;
     align-items: start;
+  }
+
+  .request-list {
+    max-height: none;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions button {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    padding: 1.2rem 1.2rem 0.8rem;
+  }
+
+  .webhook-bar {
+    padding: 1rem 1.2rem;
+  }
+
+  .panel {
+    padding: 1.2rem;
+  }
+
+  .webhook-bar input {
+    font-size: 0.85rem;
   }
 }
