@@ -142,6 +142,7 @@ async def webhook_receiver(request: Request, token: str) -> Response:
     content_type = request.headers.get("content-type")
     user_agent = request.headers.get("user-agent")
     query = request.url.query
+    received_at = utc_now()
 
     conn = get_connection()
     try:
