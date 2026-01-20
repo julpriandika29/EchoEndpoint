@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EchoEndpoint Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="page page-dashboard" data-token="{{ token }}" data-webhook="{{ webhook_url }}">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark"></span>
+        <div>
+          <h1>EchoEndpoint</h1>
+          <p>Live request capture</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="copy-url">Copy Webhook URL</button>
+        <button class="ghost" id="export-json">Download JSON</button>
+        <button class="danger" id="clear-requests">Clear Requests</button>
+      </div>
+    </header>
+
+    <section class="webhook-bar">
+      <span class="label">Webhook URL</span>
+      <input type="text" readonly value="{{ webhook_url }}" id="webhook-url" />
+      <span class="token">Token: {{ token }}</span>
+    </section>
+
+    <main class="panel">
+      <aside class="list-panel">
+        <div class="panel-head">
+          <h2>Requests</h2>
+          <span id="request-count">0</span>
+        </div>
+        <div class="request-list" id="request-list"></div>
+        <button class="ghost full" id="load-more">Load More</button>
+      </aside>
+
+      <section class="detail-panel">
+        <div class="detail-empty" id="detail-empty">
+          <h3>No request selected</h3>
+          <p>Send a request to your webhook URL or pick one from the list.</p>
+        </div>
+        <div class="detail" id="detail" hidden>
+          <div class="detail-header">
+            <div>
+              <span class="detail-method" id="detail-method"></span>
+              <span class="detail-path" id="detail-path"></span>
+            </div>
+            <div class="detail-meta" id="detail-meta"></div>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-card">
+              <h4>Headers</h4>
+              <pre id="detail-headers"></pre>
+            </div>
+            <div class="detail-card">
+              <h4>Query Params</h4>
+              <pre id="detail-query"></pre>
+            </div>
+          </div>
+
+          <div class="detail-card">
+            <div class="card-head">
+              <h4>Body (Pretty)</h4>
+              <span id="detail-body-meta"></span>
+            </div>
+            <pre id="detail-body"></pre>
+          </div>
+          <div class="detail-card">
+            <h4>Body (Raw)</h4>
+            <pre id="detail-body-raw"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

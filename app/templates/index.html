@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EchoEndpoint</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="page page-home">
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-card">
+          <p class="eyebrow">Instant webhook debugging</p>
+          <h1>EchoEndpoint</h1>
+          <p class="subhead">
+            Spin up a disposable webhook URL, inspect every request, and watch your
+            integrations in real time.
+          </p>
+          <form method="post" action="/create">
+            <button class="primary" type="submit">Create Your Webhook URL</button>
+          </form>
+          <p class="hint">No signup. Requests are stored locally in SQLite.</p>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="pulse"></div>
+          <div class="grid"></div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
