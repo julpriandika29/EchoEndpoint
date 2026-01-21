@@ -16,7 +16,7 @@
         </div>
       </div>
       <div class="actions">
-        <button class="ghost" id="copy-url">Copy Webhook URL</button>
+        <button class="ghost" id="open-response-settings">Response Settings</button>
         <button class="ghost" id="export-json">Download JSON</button>
         <button class="danger" id="clear-requests">Clear Requests</button>
       </div>
@@ -25,6 +25,7 @@
     <section class="webhook-bar">
       <span class="label">Webhook URL</span>
       <input type="text" readonly value="{{ webhook_url }}" id="webhook-url" />
+      <span class="copy-status" id="webhook-copy-status" aria-live="polite"></span>
       <span class="token">Token: {{ token }}</span>
     </section>
 
@@ -75,6 +76,28 @@
             <pre id="detail-body-raw"></pre>
           </div>
 
+        </div>
+
+      </section>
+    </main>
+
+    <div class="modal-backdrop" id="response-modal-backdrop" hidden></div>
+    <section
+      class="modal"
+      id="response-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="response-modal-title"
+      hidden
+    >
+      <div class="modal-card">
+        <header class="modal-header">
+          <h3 id="response-modal-title">Response Settings</h3>
+          <button class="ghost" id="close-response-settings" aria-label="Close">
+            ✕
+          </button>
+        </header>
+        <div class="modal-body">
           <div class="detail-card response-settings">
             <div class="card-head">
               <h4>Response Settings</h4>
@@ -126,8 +149,10 @@
             </div>
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
+
+    <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
 
     <script src="/static/app.js"></script>
   </body>

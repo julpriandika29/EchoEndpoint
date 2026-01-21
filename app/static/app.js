@@ -37,7 +37,15 @@ const contentTypeSearch = document.getElementById("content-type-search");
 const contentTypeOptionsEl = document.getElementById("content-type-options");
 const contentTypeSearchWarning = document.getElementById("content-type-search-warning");
 
-const copyBtn = document.getElementById("copy-url");
+const webhookInput = document.getElementById("webhook-url");
+const webhookCopyStatus = document.getElementById("webhook-copy-status");
+const openResponseBtn = document.getElementById("open-response-settings");
+const responseModal = document.getElementById("response-modal");
+const responseModalBackdrop = document.getElementById("response-modal-backdrop");
+const closeResponseBtn = document.getElementById("close-response-settings");
+const responseModalCard = document.querySelector(".modal-card");
+const toastRoot = document.getElementById("toast-root");
+
 const exportBtn = document.getElementById("export-json");
 const clearBtn = document.getElementById("clear-requests");
 const loadMoreBtn = document.getElementById("load-more");
@@ -80,6 +88,8 @@ const contentTypeOptions = [
 
 let selectedStatusCode = defaultResponse.statusCode;
 let selectedContentType = defaultResponse.contentType;
+let selectedRequestId = null;
+let selectionEpoch = 0;
 
 function formatTimestamp(iso) {
   if (!iso) return "unknown";
@@ -103,11 +113,12 @@ function buildListItem(item) {
   row.className = "request-row";
 
   const left = document.createElement("div");
+  left.className = "request-left";
   left.appendChild(methodBadge(item.method || "N/A"));
 
   const path = document.createElement("span");
   path.textContent = item.path || "/";
-  path.className = "detail-path";
+  path.className = "request-path";
   left.appendChild(path);
 
   const time = document.createElement("span");
@@ -131,8 +142,41 @@ function updateCount() {
 
 function setActiveItem(requestId) {
   Array.from(listEl.children).forEach((child) => {
-    child.classList.toggle("active", child.dataset.requestId === String(requestId));
+    child.classList.toggle(
+      "active",
+      requestId !== null && child.dataset.requestId === String(requestId)
+    );
   });
+}
+
+function clearDetailView() {
+  detailMethod.textContent = "";
+  detailPath.textContent = "";
+  detailMeta.textContent = "";
+  detailHeaders.textContent = "";
+  detailQuery.textContent = "";
+  detailBody.textContent = "";
+  detailBodyRaw.textContent = "";
+  detailBodyMeta.textContent = "";
+}
+
+function showEmptyDetailState() {
+  detailEmptyEl.hidden = false;
+  detailEl.hidden = true;
+  clearDetailView();
+}
+
+function setSelectedRequest(requestId) {
+  selectionEpoch += 1;
+  selectedRequestId = requestId;
+  setActiveItem(requestId);
+  if (requestId === null) {
+    showEmptyDetailState();
+    return;
+  }
+  detailEmptyEl.hidden = true;
+  detailEl.hidden = false;
+  clearDetailView();
 }
 
 async function fetchList(append = true) {
@@ -147,16 +191,19 @@ async function fetchList(append = true) {
   });
   state.offset += data.items.length;
   updateCount();
-  if (!state.selectedId && data.items.length) {
-    selectRequest(data.items[0].id);
-  }
 }
 
 async function selectRequest(requestId) {
-  state.selectedId = requestId;
-  setActiveItem(requestId);
+  setSelectedRequest(requestId);
+  const myEpoch = selectionEpoch;
   const res = await fetch(`/api/requests/${requestId}`);
+  if (myEpoch !== selectionEpoch || selectedRequestId !== requestId) {
+    return;
+  }
   const data = await res.json();
+  if (myEpoch !== selectionEpoch || selectedRequestId !== requestId) {
+    return;
+  }
 
   detailMethod.textContent = data.method;
   detailPath.textContent = data.path;
@@ -200,9 +247,6 @@ async function selectRequest(requestId) {
 
   const sizeInfo = `${data.body_size} bytes${data.truncated ? " (truncated)" : ""}`;
   detailBodyMeta.textContent = sizeInfo;
-
-  detailEmptyEl.hidden = true;
-  detailEl.hidden = false;
 }
 
 function prependRequest(payload) {
@@ -334,6 +378,124 @@ function setResponseStatus(message, isError = false) {
   responseStatusText.classList.toggle("error", isError);
 }
 
+function showToast({ type, title, message, duration = 3000 }) {
+  if (!toastRoot) return;
+  const toast = document.createElement("div");
+  toast.className = `toast toast--${type || "info"}`;
+
+  const header = document.createElement("div");
+  header.className = "toast-header";
+
+  const heading = document.createElement("div");
+  heading.className = "toast-title";
+  heading.textContent = title || "Notice";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toast-close";
+  closeBtn.type = "button";
+  closeBtn.setAttribute("aria-label", "Close notification");
+  closeBtn.textContent = "×";
+
+  const body = document.createElement("p");
+  body.className = "toast-message";
+  body.textContent = message || "";
+
+  const bar = document.createElement("div");
+  bar.className = "toast-bar";
+  bar.style.animationDuration = `${duration}ms`;
+
+  header.appendChild(heading);
+  header.appendChild(closeBtn);
+  toast.appendChild(header);
+  toast.appendChild(body);
+  toast.appendChild(bar);
+
+  toastRoot.prepend(toast);
+  const toasts = toastRoot.querySelectorAll(".toast");
+  if (toasts.length > 4) {
+    toasts[toasts.length - 1].remove();
+  }
+
+  let timeoutId = null;
+  const removeToast = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    toast.remove();
+  };
+  timeoutId = setTimeout(removeToast, duration);
+  closeBtn.addEventListener("click", removeToast);
+}
+
+function setCopyFeedback(message) {
+  if (!webhookCopyStatus) return;
+  webhookCopyStatus.textContent = message;
+  if (!message) return;
+  setTimeout(() => {
+    webhookCopyStatus.textContent = "";
+  }, 1500);
+}
+
+async function copyWebhookUrl() {
+  if (!webhookInput) return;
+  const value = webhookInput.value;
+  try {
+    await navigator.clipboard.writeText(value);
+    webhookInput.classList.add("copied");
+    setCopyFeedback("Copied!");
+  } catch (err) {
+    try {
+      webhookInput.focus();
+      webhookInput.select();
+      const ok = document.execCommand("copy");
+      if (ok) {
+        webhookInput.classList.add("copied");
+        setCopyFeedback("Copied!");
+      } else {
+        setCopyFeedback("Copy failed");
+      }
+    } catch (fallbackErr) {
+      setCopyFeedback("Copy failed");
+    }
+  } finally {
+    setTimeout(() => {
+      webhookInput.classList.remove("copied");
+    }, 1500);
+  }
+}
+
+let lastFocusedElement = null;
+let modalKeyHandler = null;
+
+function openResponseModal() {
+  if (!responseModal || !responseModalBackdrop) return;
+  lastFocusedElement = document.activeElement;
+  responseModal.hidden = false;
+  responseModalBackdrop.hidden = false;
+  if (responseBodyInput) {
+    responseBodyInput.focus();
+  }
+  modalKeyHandler = (event) => {
+    if (event.key === "Escape") {
+      closeResponseModal();
+    }
+  };
+  document.addEventListener("keydown", modalKeyHandler);
+}
+
+function closeResponseModal() {
+  if (!responseModal || !responseModalBackdrop) return;
+  responseModal.hidden = true;
+  responseModalBackdrop.hidden = true;
+  if (modalKeyHandler) {
+    document.removeEventListener("keydown", modalKeyHandler);
+    modalKeyHandler = null;
+  }
+  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+    lastFocusedElement.focus();
+  }
+}
+
 async function loadResponseConfig() {
   try {
     const res = await fetch(`/api/endpoints/${state.token}/response`);
@@ -376,11 +538,22 @@ responseSaveBtn.addEventListener("click", async () => {
     });
     if (!res.ok) {
       setResponseStatus("Failed to save response config", true);
+      showToast({
+        type: "warning",
+        title: "Save failed",
+        message: "Could not update response settings.",
+      });
       return;
     }
     setResponseStatus("Response saved");
+    showToast({ type: "success", title: "Saved", message: "Response settings updated." });
   } catch (err) {
     setResponseStatus("Failed to save response config", true);
+    showToast({
+      type: "warning",
+      title: "Save failed",
+      message: "Could not update response settings.",
+    });
   }
 });
 
@@ -391,6 +564,11 @@ responseResetBtn.addEventListener("click", async () => {
     });
     if (!res.ok) {
       setResponseStatus("Failed to reset response config", true);
+      showToast({
+        type: "warning",
+        title: "Reset failed",
+        message: "Could not reset response settings.",
+      });
       return;
     }
     setResponseForm(
@@ -399,22 +577,39 @@ responseResetBtn.addEventListener("click", async () => {
       defaultResponse.contentType
     );
     setResponseStatus("Reset to default");
+    showToast({
+      type: "info",
+      title: "Reset",
+      message: "Response settings restored to default.",
+    });
   } catch (err) {
     setResponseStatus("Failed to reset response config", true);
+    showToast({
+      type: "warning",
+      title: "Reset failed",
+      message: "Could not reset response settings.",
+    });
   }
 });
 
-copyBtn.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(state.webhookUrl);
-    copyBtn.textContent = "Copied!";
-    setTimeout(() => {
-      copyBtn.textContent = "Copy Webhook URL";
-    }, 1500);
-  } catch (err) {
-    window.alert("Copy failed. Please select the URL manually.");
-  }
-});
+if (webhookInput) {
+  webhookInput.addEventListener("click", copyWebhookUrl);
+}
+
+if (openResponseBtn) {
+  openResponseBtn.addEventListener("click", openResponseModal);
+}
+if (closeResponseBtn) {
+  closeResponseBtn.addEventListener("click", closeResponseModal);
+}
+if (responseModalBackdrop) {
+  responseModalBackdrop.addEventListener("click", closeResponseModal);
+}
+if (responseModalCard) {
+  responseModalCard.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+}
 
 exportBtn.addEventListener("click", () => {
   window.location.href = `/api/endpoints/${state.token}/export`;
@@ -423,11 +618,33 @@ exportBtn.addEventListener("click", () => {
 clearBtn.addEventListener("click", async () => {
   const ok = window.confirm("Clear all requests for this endpoint?");
   if (!ok) return;
-  await fetch(`/api/endpoints/${state.token}/clear`, { method: "POST" });
+  try {
+    const res = await fetch(`/api/endpoints/${state.token}/clear`, { method: "POST" });
+    if (!res.ok) {
+      showToast({
+        type: "warning",
+        title: "Clear failed",
+        message: "Could not clear requests.",
+      });
+      return;
+    }
+    showToast({
+      type: "warning",
+      title: "Cleared",
+      message: "All requests were cleared.",
+    });
+  } catch (err) {
+    showToast({
+      type: "warning",
+      title: "Clear failed",
+      message: "Could not clear requests.",
+    });
+    return;
+  }
   state.offset = 0;
-  state.selectedId = null;
-  detailEl.hidden = true;
-  detailEmptyEl.hidden = false;
+  setSelectedRequest(null);
+  listEl.innerHTML = "";
+  updateCount();
   await fetchList(false);
 });
 
@@ -449,3 +666,11 @@ contentTypeSearch.addEventListener("input", renderContentTypeOptions);
 fetchList(true);
 setupSSE();
 loadResponseConfig();
+showEmptyDetailState();
+
+if (responseModal) {
+  responseModal.hidden = true;
+}
+if (responseModalBackdrop) {
+  responseModalBackdrop.hidden = true;
+}

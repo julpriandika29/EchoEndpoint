@@ -60,6 +60,7 @@
 - Pages/routes: `/` renders `app/templates/index.html`; `/e/{token}` renders `app/templates/dashboard.html`.
 - Data sources: `app/static/app.js` calls `/api/endpoints/{token}/requests`, `/api/requests/{id}`, `/api/endpoints/{token}/clear`, `/api/endpoints/{token}/export`, `/api/endpoints/{token}/response`, and subscribes to `/events/{token}`.
 - Response settings: `/e/{token}` includes a response configuration panel with status code and content type dropdowns plus a raw body editor; body is stored as text.
+- UI behavior: request list scrollbars are visually hidden but remain scrollable, long paths are truncated with ellipsis, clearing requests resets the detail inspector to an empty state without leaving stale data, the webhook URL is copied by clicking the input, response settings open in a modal from the topbar that starts hidden and closes via the close button, backdrop click, or Escape, and save/reset/clear actions trigger top-right toasts that auto-dismiss with a countdown bar.
 - Auth/session: Not found; dashboard relies on token in URL; no cookies/sessions.
 
 # Testing & Quality
