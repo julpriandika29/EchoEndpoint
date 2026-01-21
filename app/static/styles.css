@@ -218,20 +218,10 @@ button.danger {
   box-shadow: 0 0 0 2px rgba(255, 177, 149, 0.12);
 }
 
-.webhook-bar input.copied {
-  border-color: rgba(61, 220, 151, 0.7);
-  box-shadow: 0 0 0 2px rgba(61, 220, 151, 0.2);
-}
-
 .webhook-bar .label,
-.webhook-bar .token,
-.webhook-bar .copy-status {
+.webhook-bar .token {
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-.copy-status {
-  min-height: 1.2rem;
 }
 
 .panel {

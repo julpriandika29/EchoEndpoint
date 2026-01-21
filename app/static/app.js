@@ -38,7 +38,6 @@ const contentTypeOptionsEl = document.getElementById("content-type-options");
 const contentTypeSearchWarning = document.getElementById("content-type-search-warning");
 
 const webhookInput = document.getElementById("webhook-url");
-const webhookCopyStatus = document.getElementById("webhook-copy-status");
 const openResponseBtn = document.getElementById("open-response-settings");
 const responseModal = document.getElementById("response-modal");
 const responseModalBackdrop = document.getElementById("response-modal-backdrop");
@@ -434,22 +433,11 @@ function showToast({ type, title, message, duration = 3000 }) {
   closeBtn.addEventListener("click", removeToast);
 }
 
-function setCopyFeedback(message) {
-  if (!webhookCopyStatus) return;
-  webhookCopyStatus.textContent = message;
-  if (!message) return;
-  setTimeout(() => {
-    webhookCopyStatus.textContent = "";
-  }, 1500);
-}
-
 async function copyWebhookUrl() {
   if (!webhookInput) return;
   const value = webhookInput.value;
   try {
     await navigator.clipboard.writeText(value);
-    webhookInput.classList.add("copied");
-    setCopyFeedback("Copied!");
     showToast({
       type: "success",
       title: "Copied",
@@ -461,15 +449,12 @@ async function copyWebhookUrl() {
       webhookInput.select();
       const ok = document.execCommand("copy");
       if (ok) {
-        webhookInput.classList.add("copied");
-        setCopyFeedback("Copied!");
         showToast({
           type: "success",
           title: "Copied",
           message: "Webhook URL copied to clipboard.",
         });
       } else {
-        setCopyFeedback("Copy failed");
         showToast({
           type: "warning",
           title: "Copy failed",
@@ -477,17 +462,12 @@ async function copyWebhookUrl() {
         });
       }
     } catch (fallbackErr) {
-      setCopyFeedback("Copy failed");
       showToast({
         type: "warning",
         title: "Copy failed",
         message: "Could not copy webhook URL.",
       });
     }
-  } finally {
-    setTimeout(() => {
-      webhookInput.classList.remove("copied");
-    }, 1500);
   }
 }
 
