@@ -1,763 +1,177 @@
-const state = {
-  token: document.body.dataset.token,
-  webhookUrl: document.body.dataset.webhook,
-  offset: 0,
-  limit: 200,
-  selectedId: null,
+﻿import { byId } from "./js/dom.js";
+import { state, selection, responseState, defaultResponse } from "./js/state.js";
+import * as api from "./js/api.js";
+import { initToasts, showToast } from "./js/toasts.js";
+import { initClipboardCopy } from "./js/clipboard.js";
+import { initResponseModal, initConfirmModal } from "./js/modals.js";
+import { initRequests } from "./js/requests.js";
+import { initResponseSettings } from "./js/response_settings.js";
+import { initSSE } from "./js/sse.js";
+
+const elements = {
+  listEl: byId("request-list"),
+  countEl: byId("request-count"),
+  detailEl: byId("detail"),
+  detailEmptyEl: byId("detail-empty"),
+  detailMethod: byId("detail-method"),
+  detailPath: byId("detail-path"),
+  detailMeta: byId("detail-meta"),
+  detailHeaders: byId("detail-headers"),
+  detailQuery: byId("detail-query"),
+  detailBody: byId("detail-body"),
+  detailBodyRaw: byId("detail-body-raw"),
+  detailBodyMeta: byId("detail-body-meta"),
+  responseBodyInput: byId("response-body"),
+  responseSaveBtn: byId("response-save"),
+  responseResetBtn: byId("response-reset"),
+  responseStatusText: byId("response-status-text"),
+  statusDropdown: byId("status-dropdown"),
+  statusSelected: byId("status-selected"),
+  statusSearch: byId("status-search"),
+  statusOptionsEl: byId("status-options"),
+  statusSearchWarning: byId("status-search-warning"),
+  contentTypeDropdown: byId("content-type-dropdown"),
+  contentTypeSelected: byId("content-type-selected"),
+  contentTypeSearch: byId("content-type-search"),
+  contentTypeOptionsEl: byId("content-type-options"),
+  contentTypeSearchWarning: byId("content-type-search-warning"),
+  webhookInput: byId("webhook-url"),
+  openResponseBtn: byId("open-response-settings"),
+  responseModal: byId("response-modal"),
+  responseModalBackdrop: byId("response-modal-backdrop"),
+  closeResponseBtn: byId("close-response-settings"),
+  exportBtn: byId("export-json"),
+  clearBtn: byId("clear-requests"),
+  loadMoreBtn: byId("load-more"),
+  toastRoot: byId("toast-root"),
+  clearModal: byId("clear-modal"),
+  clearModalBackdrop: byId("clear-modal-backdrop"),
+  closeClearModalBtn: byId("close-clear-modal"),
+  cancelClearModalBtn: byId("cancel-clear-modal"),
+  confirmClearModalBtn: byId("confirm-clear-modal"),
 };
 
-const listEl = document.getElementById("request-list");
-const countEl = document.getElementById("request-count");
-const detailEl = document.getElementById("detail");
-const detailEmptyEl = document.getElementById("detail-empty");
+const responseModalCard = document.querySelector("#response-modal .modal-card");
+const clearModalCard = elements.clearModal
+  ? elements.clearModal.querySelector(".modal-card")
+  : null;
 
-const detailMethod = document.getElementById("detail-method");
-const detailPath = document.getElementById("detail-path");
-const detailMeta = document.getElementById("detail-meta");
-const detailHeaders = document.getElementById("detail-headers");
-const detailQuery = document.getElementById("detail-query");
-const detailBody = document.getElementById("detail-body");
-const detailBodyRaw = document.getElementById("detail-body-raw");
-const detailBodyMeta = document.getElementById("detail-body-meta");
+initToasts(elements.toastRoot);
+initClipboardCopy({ input: elements.webhookInput, showToast });
 
-const responseBodyInput = document.getElementById("response-body");
-const responseSaveBtn = document.getElementById("response-save");
-const responseResetBtn = document.getElementById("response-reset");
-const responseStatusText = document.getElementById("response-status-text");
+const requests = initRequests({
+  state,
+  selection,
+  elements: {
+    listEl: elements.listEl,
+    countEl: elements.countEl,
+    detailEl: elements.detailEl,
+    detailEmptyEl: elements.detailEmptyEl,
+    detailMethod: elements.detailMethod,
+    detailPath: elements.detailPath,
+    detailMeta: elements.detailMeta,
+    detailHeaders: elements.detailHeaders,
+    detailQuery: elements.detailQuery,
+    detailBody: elements.detailBody,
+    detailBodyRaw: elements.detailBodyRaw,
+    detailBodyMeta: elements.detailBodyMeta,
+  },
+  api,
+});
 
-const statusDropdown = document.getElementById("status-dropdown");
-const statusSelected = document.getElementById("status-selected");
-const statusSearch = document.getElementById("status-search");
-const statusOptionsEl = document.getElementById("status-options");
-const statusSearchWarning = document.getElementById("status-search-warning");
+const responseSettings = initResponseSettings({
+  state,
+  responseState,
+  defaultResponse,
+  elements: {
+    responseBodyInput: elements.responseBodyInput,
+    responseSaveBtn: elements.responseSaveBtn,
+    responseResetBtn: elements.responseResetBtn,
+    responseStatusText: elements.responseStatusText,
+    statusDropdown: elements.statusDropdown,
+    statusSelected: elements.statusSelected,
+    statusSearch: elements.statusSearch,
+    statusOptionsEl: elements.statusOptionsEl,
+    statusSearchWarning: elements.statusSearchWarning,
+    contentTypeDropdown: elements.contentTypeDropdown,
+    contentTypeSelected: elements.contentTypeSelected,
+    contentTypeSearch: elements.contentTypeSearch,
+    contentTypeOptionsEl: elements.contentTypeOptionsEl,
+    contentTypeSearchWarning: elements.contentTypeSearchWarning,
+  },
+  api,
+  showToast,
+});
 
-const contentTypeDropdown = document.getElementById("content-type-dropdown");
-const contentTypeSelected = document.getElementById("content-type-selected");
-const contentTypeSearch = document.getElementById("content-type-search");
-const contentTypeOptionsEl = document.getElementById("content-type-options");
-const contentTypeSearchWarning = document.getElementById("content-type-search-warning");
+initResponseModal({
+  openBtn: elements.openResponseBtn,
+  modal: elements.responseModal,
+  backdrop: elements.responseModalBackdrop,
+  closeBtn: elements.closeResponseBtn,
+  card: responseModalCard,
+  focusEl: elements.responseBodyInput,
+});
 
-const webhookInput = document.getElementById("webhook-url");
-const openResponseBtn = document.getElementById("open-response-settings");
-const responseModal = document.getElementById("response-modal");
-const responseModalBackdrop = document.getElementById("response-modal-backdrop");
-const closeResponseBtn = document.getElementById("close-response-settings");
-const responseModalCard = document.querySelector(".modal-card");
-const toastRoot = document.getElementById("toast-root");
-const clearModal = document.getElementById("clear-modal");
-const clearModalBackdrop = document.getElementById("clear-modal-backdrop");
-const closeClearModalBtn = document.getElementById("close-clear-modal");
-const cancelClearModalBtn = document.getElementById("cancel-clear-modal");
-const confirmClearModalBtn = document.getElementById("confirm-clear-modal");
-const clearModalCard = clearModal ? clearModal.querySelector(".modal-card") : null;
-
-const exportBtn = document.getElementById("export-json");
-const clearBtn = document.getElementById("clear-requests");
-const loadMoreBtn = document.getElementById("load-more");
-
-const defaultResponse = {
-  statusCode: 200,
-  bodyText: '{"message":"ok"}',
-  contentType: "application/json",
-};
-
-const statusOptions = [
-  { code: 200, label: "OK" },
-  { code: 201, label: "Created" },
-  { code: 202, label: "Accepted" },
-  { code: 204, label: "No Content" },
-  { code: 301, label: "Moved Permanently" },
-  { code: 302, label: "Found" },
-  { code: 304, label: "Not Modified" },
-  { code: 400, label: "Bad Request" },
-  { code: 401, label: "Unauthorized" },
-  { code: 403, label: "Forbidden" },
-  { code: 404, label: "Not Found" },
-  { code: 409, label: "Conflict" },
-  { code: 422, label: "Unprocessable Entity" },
-  { code: 429, label: "Too Many Requests" },
-  { code: 500, label: "Internal Server Error" },
-  { code: 502, label: "Bad Gateway" },
-  { code: 503, label: "Service Unavailable" },
-  { code: 504, label: "Gateway Timeout" },
-];
-
-const contentTypeOptions = [
-  "application/json",
-  "text/plain",
-  "text/html",
-  "application/xml",
-  "application/x-www-form-urlencoded",
-  "application/octet-stream",
-];
-
-let selectedStatusCode = defaultResponse.statusCode;
-let selectedContentType = defaultResponse.contentType;
-let selectedRequestId = null;
-let selectionEpoch = 0;
-
-function formatTimestamp(iso) {
-  if (!iso) return "unknown";
-  const date = new Date(iso);
-  return date.toLocaleString();
-}
-
-function methodBadge(method) {
-  const span = document.createElement("span");
-  span.className = "badge";
-  span.textContent = method;
-  return span;
-}
-
-function buildListItem(item) {
-  const card = document.createElement("div");
-  card.className = "request-item";
-  card.dataset.requestId = item.id;
-
-  const row = document.createElement("div");
-  row.className = "request-row";
-
-  const left = document.createElement("div");
-  left.className = "request-left";
-  left.appendChild(methodBadge(item.method || "N/A"));
-
-  const path = document.createElement("span");
-  path.textContent = item.path || "/";
-  path.className = "request-path";
-  left.appendChild(path);
-
-  const time = document.createElement("span");
-  time.className = "request-meta";
-  time.textContent = formatTimestamp(item.received_at);
-
-  row.appendChild(left);
-  card.appendChild(row);
-  card.appendChild(time);
-
-  card.addEventListener("click", () => {
-    selectRequest(item.id);
-  });
-
-  return card;
-}
-
-function updateCount() {
-  countEl.textContent = listEl.children.length.toString();
-}
-
-function setActiveItem(requestId) {
-  Array.from(listEl.children).forEach((child) => {
-    child.classList.toggle(
-      "active",
-      requestId !== null && child.dataset.requestId === String(requestId)
-    );
-  });
-}
-
-function clearDetailView() {
-  detailMethod.textContent = "";
-  detailPath.textContent = "";
-  detailMeta.textContent = "";
-  detailHeaders.textContent = "";
-  detailQuery.textContent = "";
-  detailBody.textContent = "";
-  detailBodyRaw.textContent = "";
-  detailBodyMeta.textContent = "";
-}
-
-function showEmptyDetailState() {
-  detailEmptyEl.hidden = false;
-  detailEl.hidden = true;
-  clearDetailView();
-}
-
-function setSelectedRequest(requestId) {
-  selectionEpoch += 1;
-  selectedRequestId = requestId;
-  setActiveItem(requestId);
-  if (requestId === null) {
-    showEmptyDetailState();
-    return;
-  }
-  detailEmptyEl.hidden = true;
-  detailEl.hidden = false;
-  clearDetailView();
-}
-
-async function fetchList(append = true) {
-  const url = `/api/endpoints/${state.token}/requests?limit=${state.limit}&offset=${state.offset}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!append) {
-    listEl.innerHTML = "";
-  }
-  data.items.forEach((item) => {
-    listEl.appendChild(buildListItem(item));
-  });
-  state.offset += data.items.length;
-  updateCount();
-  return data.items.length;
-}
-
-async function selectRequest(requestId) {
-  setSelectedRequest(requestId);
-  const myEpoch = selectionEpoch;
-  const res = await fetch(`/api/requests/${requestId}`);
-  if (myEpoch !== selectionEpoch || selectedRequestId !== requestId) {
-    return;
-  }
-  const data = await res.json();
-  if (myEpoch !== selectionEpoch || selectedRequestId !== requestId) {
-    return;
-  }
-
-  detailMethod.textContent = data.method;
-  detailPath.textContent = data.path;
-  detailMeta.textContent = `${formatTimestamp(data.received_at)} · ${data.remote_ip || "unknown"}`;
-
-  let headers = {};
-  try {
-    headers = JSON.parse(data.headers_json);
-  } catch (err) {
-    headers = { error: "Unable to parse headers" };
-  }
-  detailHeaders.textContent = JSON.stringify(headers, null, 2);
-
-  const params = {};
-  if (data.query) {
-    const parsed = new URLSearchParams(data.query);
-    parsed.forEach((value, key) => {
-      params[key] = value;
-    });
-  }
-  detailQuery.textContent = JSON.stringify(params, null, 2);
-
-  const rawText = data.body_text || "";
-  let prettyBody = rawText;
-  if (rawText) {
-    try {
-      prettyBody = JSON.stringify(JSON.parse(rawText), null, 2);
-    } catch (err) {
-      prettyBody = rawText;
-    }
-  }
-  detailBody.textContent = prettyBody || "(empty)";
-
-  if (rawText) {
-    detailBodyRaw.textContent = rawText;
-  } else {
-    detailBodyRaw.textContent = data.body_blob_base64
-      ? `base64:${data.body_blob_base64}`
-      : "(empty)";
-  }
-
-  const sizeInfo = `${data.body_size} bytes${data.truncated ? " (truncated)" : ""}`;
-  detailBodyMeta.textContent = sizeInfo;
-}
-
-function prependRequest(payload) {
-  const item = {
-    id: payload.id,
-    received_at: payload.received_at,
-    method: payload.method,
-    path: payload.path,
-  };
-  const node = buildListItem(item);
-  listEl.prepend(node);
-  updateCount();
-}
-
-function setupSSE() {
-  const source = new EventSource(`/events/${state.token}`);
-  source.addEventListener("request_received", (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      prependRequest(payload);
-    } catch (err) {
-      console.error("Failed to parse SSE payload", err);
-    }
-  });
-}
-
-function setStatusSelection(statusCode) {
-  const match = statusOptions.find((item) => item.code === statusCode);
-  selectedStatusCode = match ? match.code : defaultResponse.statusCode;
-  const label = match ? `${match.code} - ${match.label}` : `${defaultResponse.statusCode} - OK`;
-  statusSelected.textContent = label;
-}
-
-function setContentTypeSelection(value) {
-  const match = contentTypeOptions.find((item) => item === value);
-  selectedContentType = match || defaultResponse.contentType;
-  contentTypeSelected.textContent = selectedContentType;
-}
-
-function renderStatusOptions() {
-  const pattern = statusSearch.value.trim();
-  let regex = null;
-  let invalid = false;
-  if (pattern) {
-    let source = pattern;
-    if (!source.startsWith("^")) {
-      source = `^${source}`;
-    }
-    try {
-      regex = new RegExp(source, "i");
-    } catch (err) {
-      invalid = true;
-    }
-  }
-  statusSearchWarning.hidden = !invalid;
-  statusOptionsEl.innerHTML = "";
-  statusOptions.forEach((item) => {
-    const codeStr = String(item.code);
-    let match = true;
-    if (pattern) {
-      if (regex) {
-        match = regex.test(codeStr);
-      } else {
-        match = codeStr.toLowerCase().startsWith(pattern.toLowerCase());
-      }
-    }
-    if (!match) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = `${item.code} - ${item.label}`;
-    button.addEventListener("click", () => {
-      setStatusSelection(item.code);
-      statusDropdown.open = false;
-    });
-    statusOptionsEl.appendChild(button);
-  });
-}
-
-function renderContentTypeOptions() {
-  const pattern = contentTypeSearch.value.trim();
-  let regex = null;
-  let invalid = false;
-  if (pattern) {
-    try {
-      regex = new RegExp(pattern, "i");
-    } catch (err) {
-      invalid = true;
-    }
-  }
-  contentTypeSearchWarning.hidden = !invalid;
-  contentTypeOptionsEl.innerHTML = "";
-  contentTypeOptions.forEach((item) => {
-    let match = true;
-    if (pattern) {
-      if (regex) {
-        match = regex.test(item);
-      } else {
-        match = item.toLowerCase().includes(pattern.toLowerCase());
-      }
-    }
-    if (!match) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = item;
-    button.addEventListener("click", () => {
-      setContentTypeSelection(item);
-      contentTypeDropdown.open = false;
-    });
-    contentTypeOptionsEl.appendChild(button);
-  });
-}
-
-function setResponseForm(statusCode, bodyText, contentType) {
-  setStatusSelection(statusCode);
-  setContentTypeSelection(contentType);
-  let bodyValue = bodyText;
-  if (typeof bodyValue !== "string") {
-    try {
-      bodyValue = JSON.stringify(bodyValue, null, 2);
-    } catch (err) {
-      bodyValue = String(bodyValue);
-    }
-  }
-  responseBodyInput.value = bodyValue;
-}
-
-function setResponseStatus(message, isError = false) {
-  responseStatusText.textContent = message;
-  responseStatusText.classList.toggle("error", isError);
-}
-
-function showToast({ type, title, message, duration = 3000 }) {
-  if (!toastRoot) return;
-  const toast = document.createElement("div");
-  toast.className = `toast toast--${type || "info"}`;
-
-  const header = document.createElement("div");
-  header.className = "toast-header";
-
-  const heading = document.createElement("div");
-  heading.className = "toast-title";
-  heading.textContent = title || "Notice";
-
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "toast-close";
-  closeBtn.type = "button";
-  closeBtn.setAttribute("aria-label", "Close notification");
-  closeBtn.textContent = "×";
-
-  const body = document.createElement("p");
-  body.className = "toast-message";
-  body.textContent = message || "";
-
-  const bar = document.createElement("div");
-  bar.className = "toast-bar";
-  bar.style.animationDuration = `${duration}ms`;
-
-  header.appendChild(heading);
-  header.appendChild(closeBtn);
-  toast.appendChild(header);
-  toast.appendChild(body);
-  toast.appendChild(bar);
-
-  toastRoot.prepend(toast);
-  const toasts = toastRoot.querySelectorAll(".toast");
-  if (toasts.length > 4) {
-    toasts[toasts.length - 1].remove();
-  }
-
-  let timeoutId = null;
-  const removeToast = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    toast.remove();
-  };
-  timeoutId = setTimeout(removeToast, duration);
-  closeBtn.addEventListener("click", removeToast);
-}
-
-async function copyWebhookUrl() {
-  if (!webhookInput) return;
-  const value = webhookInput.value;
-  try {
-    await navigator.clipboard.writeText(value);
-    showToast({
-      type: "success",
-      title: "Copied",
-      message: "Webhook URL copied to clipboard.",
-    });
-  } catch (err) {
-    try {
-      webhookInput.focus();
-      webhookInput.select();
-      const ok = document.execCommand("copy");
-      if (ok) {
-        showToast({
-          type: "success",
-          title: "Copied",
-          message: "Webhook URL copied to clipboard.",
-        });
-      } else {
-        showToast({
-          type: "warning",
-          title: "Copy failed",
-          message: "Could not copy webhook URL.",
-        });
-      }
-    } catch (fallbackErr) {
+initConfirmModal({
+  openBtn: elements.clearBtn,
+  modal: elements.clearModal,
+  backdrop: elements.clearModalBackdrop,
+  closeBtn: elements.closeClearModalBtn,
+  cancelBtn: elements.cancelClearModalBtn,
+  confirmBtn: elements.confirmClearModalBtn,
+  card: clearModalCard,
+  onConfirm: async () => {
+    const ok = await requests.clearAllRequests();
+    if (ok) {
       showToast({
         type: "warning",
-        title: "Copy failed",
-        message: "Could not copy webhook URL.",
+        title: "Cleared",
+        message: "All requests were cleared.",
       });
-    }
-  }
-}
-
-let lastFocusedElement = null;
-let modalKeyHandler = null;
-let clearModalKeyHandler = null;
-
-function openResponseModal() {
-  if (!responseModal || !responseModalBackdrop) return;
-  lastFocusedElement = document.activeElement;
-  responseModal.hidden = false;
-  responseModalBackdrop.hidden = false;
-  if (responseBodyInput) {
-    responseBodyInput.focus();
-  }
-  modalKeyHandler = (event) => {
-    if (event.key === "Escape") {
-      closeResponseModal();
-    }
-  };
-  document.addEventListener("keydown", modalKeyHandler);
-}
-
-function closeResponseModal() {
-  if (!responseModal || !responseModalBackdrop) return;
-  responseModal.hidden = true;
-  responseModalBackdrop.hidden = true;
-  if (modalKeyHandler) {
-    document.removeEventListener("keydown", modalKeyHandler);
-    modalKeyHandler = null;
-  }
-  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
-    lastFocusedElement.focus();
-  }
-}
-
-function openClearModal() {
-  if (!clearModal || !clearModalBackdrop) return;
-  lastFocusedElement = document.activeElement;
-  clearModal.hidden = false;
-  clearModalBackdrop.hidden = false;
-  if (cancelClearModalBtn) {
-    cancelClearModalBtn.focus();
-  }
-  clearModalKeyHandler = (event) => {
-    if (event.key === "Escape") {
-      closeClearModal();
-    }
-  };
-  document.addEventListener("keydown", clearModalKeyHandler);
-}
-
-function closeClearModal() {
-  if (!clearModal || !clearModalBackdrop) return;
-  clearModal.hidden = true;
-  clearModalBackdrop.hidden = true;
-  if (clearModalKeyHandler) {
-    document.removeEventListener("keydown", clearModalKeyHandler);
-    clearModalKeyHandler = null;
-  }
-  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
-    lastFocusedElement.focus();
-  }
-}
-
-async function doClearRequests() {
-  try {
-    const res = await fetch(`/api/endpoints/${state.token}/clear`, { method: "POST" });
-    if (!res.ok) {
+    } else {
       showToast({
         type: "warning",
         title: "Clear failed",
         message: "Could not clear requests.",
       });
-      return;
     }
-    showToast({
-      type: "warning",
-      title: "Cleared",
-      message: "All requests were cleared.",
-    });
-  } catch (err) {
-    showToast({
-      type: "warning",
-      title: "Clear failed",
-      message: "Could not clear requests.",
-    });
-    return;
-  }
-  state.offset = 0;
-  setSelectedRequest(null);
-  listEl.innerHTML = "";
-  updateCount();
-  await fetchList(false);
+  },
+});
+
+if (elements.exportBtn) {
+  elements.exportBtn.addEventListener("click", () => {
+    window.location.href = `/api/endpoints/${state.token}/export`;
+  });
 }
 
-async function loadResponseConfig() {
-  try {
-    const res = await fetch(`/api/endpoints/${state.token}/response`);
-    if (res.status === 404) {
-      setResponseForm(
-        defaultResponse.statusCode,
-        defaultResponse.bodyText,
-        defaultResponse.contentType
-      );
-      setResponseStatus("Using default response");
-      return;
-    }
-    if (!res.ok) {
-      setResponseStatus("Failed to load response config", true);
-      return;
-    }
-    const data = await res.json();
-    setResponseForm(data.status_code, data.body, data.content_type || defaultResponse.contentType);
-    setResponseStatus("Custom response loaded");
-  } catch (err) {
-    setResponseStatus("Failed to load response config", true);
-  }
-}
-
-responseSaveBtn.addEventListener("click", async () => {
-  const statusCode = selectedStatusCode;
-  if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) {
-    setResponseStatus("Select a valid status code", true);
-    return;
-  }
-
-  const body = responseBodyInput.value;
-  const contentType = selectedContentType;
-
-  try {
-    const res = await fetch(`/api/endpoints/${state.token}/response`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status_code: statusCode, body, content_type: contentType }),
-    });
-    if (!res.ok) {
-      setResponseStatus("Failed to save response config", true);
+if (elements.loadMoreBtn) {
+  elements.loadMoreBtn.addEventListener("click", async () => {
+    try {
+      const added = await requests.fetchList(true);
+      if (added > 0) {
+        showToast({
+          type: "info",
+          title: "Loaded",
+          message: `Loaded ${added} new requests.`,
+        });
+      } else {
+        showToast({
+          type: "info",
+          title: "Loaded",
+          message: "No new requests to load.",
+        });
+      }
+    } catch (err) {
       showToast({
         type: "warning",
-        title: "Save failed",
-        message: "Could not update response settings.",
+        title: "Load failed",
+        message: "Could not load more requests.",
       });
-      return;
     }
-    setResponseStatus("Response saved");
-    showToast({ type: "success", title: "Saved", message: "Response settings updated." });
-  } catch (err) {
-    setResponseStatus("Failed to save response config", true);
-    showToast({
-      type: "warning",
-      title: "Save failed",
-      message: "Could not update response settings.",
-    });
-  }
-});
-
-responseResetBtn.addEventListener("click", async () => {
-  try {
-    const res = await fetch(`/api/endpoints/${state.token}/response`, {
-      method: "DELETE",
-    });
-    if (!res.ok) {
-      setResponseStatus("Failed to reset response config", true);
-      showToast({
-        type: "warning",
-        title: "Reset failed",
-        message: "Could not reset response settings.",
-      });
-      return;
-    }
-    setResponseForm(
-      defaultResponse.statusCode,
-      defaultResponse.bodyText,
-      defaultResponse.contentType
-    );
-    setResponseStatus("Reset to default");
-    showToast({
-      type: "info",
-      title: "Reset",
-      message: "Response settings restored to default.",
-    });
-  } catch (err) {
-    setResponseStatus("Failed to reset response config", true);
-    showToast({
-      type: "warning",
-      title: "Reset failed",
-      message: "Could not reset response settings.",
-    });
-  }
-});
-
-if (webhookInput) {
-  webhookInput.addEventListener("click", copyWebhookUrl);
-}
-
-if (openResponseBtn) {
-  openResponseBtn.addEventListener("click", openResponseModal);
-}
-if (closeResponseBtn) {
-  closeResponseBtn.addEventListener("click", closeResponseModal);
-}
-if (responseModalBackdrop) {
-  responseModalBackdrop.addEventListener("click", closeResponseModal);
-}
-if (responseModalCard) {
-  responseModalCard.addEventListener("click", (event) => {
-    event.stopPropagation();
   });
 }
 
-if (cancelClearModalBtn) {
-  cancelClearModalBtn.addEventListener("click", closeClearModal);
-}
-if (closeClearModalBtn) {
-  closeClearModalBtn.addEventListener("click", closeClearModal);
-}
-if (clearModalBackdrop) {
-  clearModalBackdrop.addEventListener("click", closeClearModal);
-}
-if (confirmClearModalBtn) {
-  confirmClearModalBtn.addEventListener("click", async () => {
-    await doClearRequests();
-    closeClearModal();
-  });
-}
-if (clearModalCard) {
-  clearModalCard.addEventListener("click", (event) => {
-    event.stopPropagation();
-  });
-}
-
-exportBtn.addEventListener("click", () => {
-  window.location.href = `/api/endpoints/${state.token}/export`;
-});
-
-clearBtn.addEventListener("click", async () => {
-  openClearModal();
-});
-
-loadMoreBtn.addEventListener("click", async () => {
-  try {
-    const added = await fetchList(true);
-    if (added > 0) {
-      showToast({
-        type: "info",
-        title: "Loaded",
-        message: `Loaded ${added} new requests.`,
-      });
-    } else {
-      showToast({
-        type: "info",
-        title: "Loaded",
-        message: "No new requests to load.",
-      });
-    }
-  } catch (err) {
-    showToast({
-      type: "warning",
-      title: "Load failed",
-      message: "Could not load more requests.",
-    });
-  }
-});
-
-setResponseForm(
-  defaultResponse.statusCode,
-  defaultResponse.bodyText,
-  defaultResponse.contentType
-);
-renderStatusOptions();
-renderContentTypeOptions();
-
-statusSearch.addEventListener("input", renderStatusOptions);
-contentTypeSearch.addEventListener("input", renderContentTypeOptions);
-
-fetchList(true);
-setupSSE();
-loadResponseConfig();
-showEmptyDetailState();
-
-if (responseModal) {
-  responseModal.hidden = true;
-}
-if (responseModalBackdrop) {
-  responseModalBackdrop.hidden = true;
-}
-if (clearModal) {
-  clearModal.hidden = true;
-}
-if (clearModalBackdrop) {
-  clearModalBackdrop.hidden = true;
-}
+initSSE(state.token, requests.prependRequest);
+requests.fetchList(true);
+responseSettings.loadResponseConfig();
+requests.showEmptyDetailState();

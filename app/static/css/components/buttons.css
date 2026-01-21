@@ -1,0 +1,41 @@
+.primary {
+  background: var(--accent);
+  color: #121214;
+  border: none;
+  padding: 0.9rem 1.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1.5rem;
+}
+
+button.ghost,
+button.danger {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+button.danger {
+  border-color: rgba(255, 122, 89, 0.5);
+  color: var(--accent-soft);
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(61, 220, 151, 0.2);
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.08rem;
+}
+
+.full {
+  width: 100%;
+  margin-top: 1rem;
+}

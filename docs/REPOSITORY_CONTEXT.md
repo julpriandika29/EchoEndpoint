@@ -22,6 +22,8 @@
 - `app/templates/dashboard.html` (dashboard page)
 - `app/static/styles.css` (dashboard styling)
 - `app/static/app.js` (dashboard logic, API + SSE)
+- `app/static/js/` (modular dashboard scripts: API, requests, SSE, toasts, modals, response settings)
+- `app/static/css/` (modular CSS for base/layout/components/utilities)
 - `requirements.txt`
 - `README.md`
 - Not found: `docs/` before this file, `tests/`, `migrations/`, `pyproject.toml`.
@@ -62,6 +64,12 @@
 - Response settings: `/e/{token}` includes a response configuration panel with status code and content type dropdowns plus a raw body editor; body is stored as text.
 - UI behavior: request list scrollbars are visually hidden but remain scrollable, modal and dropdown option scrollbars are hidden while preserving scroll, long paths are truncated with ellipsis, clearing requests uses a confirmation modal and resets the detail inspector to an empty state without leaving stale data, the webhook URL is copied by clicking the input with toast-only feedback (no inline indicator), response settings open in a modal from the topbar that starts hidden and closes via the close button, backdrop click, or Escape, Load More shows a toast with the number of requests loaded, and save/reset/clear actions trigger top-right toasts that auto-dismiss with a countdown bar.
 - Auth/session: Not found; dashboard relies on token in URL; no cookies/sessions.
+
+# Frontend Asset Structure
+- Entry point: `app/static/app.js` bootstraps the dashboard using native ES modules.
+- JS modules: feature and utility modules live in `app/static/js/` (API calls, request list rendering, SSE setup, toasts, modals, response settings).
+- CSS structure: `app/static/styles.css` loads modular styles from `app/static/css/` (base, layout, components, utilities) via `@import`.
+- Build step: Not found; assets are served directly without bundling.
 
 # Testing & Quality
 - Tests: Not found (no `tests/` directory or test dependencies).
