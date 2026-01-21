@@ -45,6 +45,12 @@ const responseModalBackdrop = document.getElementById("response-modal-backdrop")
 const closeResponseBtn = document.getElementById("close-response-settings");
 const responseModalCard = document.querySelector(".modal-card");
 const toastRoot = document.getElementById("toast-root");
+const clearModal = document.getElementById("clear-modal");
+const clearModalBackdrop = document.getElementById("clear-modal-backdrop");
+const closeClearModalBtn = document.getElementById("close-clear-modal");
+const cancelClearModalBtn = document.getElementById("cancel-clear-modal");
+const confirmClearModalBtn = document.getElementById("confirm-clear-modal");
+const clearModalCard = clearModal ? clearModal.querySelector(".modal-card") : null;
 
 const exportBtn = document.getElementById("export-json");
 const clearBtn = document.getElementById("clear-requests");
@@ -191,6 +197,7 @@ async function fetchList(append = true) {
   });
   state.offset += data.items.length;
   updateCount();
+  return data.items.length;
 }
 
 async function selectRequest(requestId) {
@@ -443,6 +450,11 @@ async function copyWebhookUrl() {
     await navigator.clipboard.writeText(value);
     webhookInput.classList.add("copied");
     setCopyFeedback("Copied!");
+    showToast({
+      type: "success",
+      title: "Copied",
+      message: "Webhook URL copied to clipboard.",
+    });
   } catch (err) {
     try {
       webhookInput.focus();
@@ -451,11 +463,26 @@ async function copyWebhookUrl() {
       if (ok) {
         webhookInput.classList.add("copied");
         setCopyFeedback("Copied!");
+        showToast({
+          type: "success",
+          title: "Copied",
+          message: "Webhook URL copied to clipboard.",
+        });
       } else {
         setCopyFeedback("Copy failed");
+        showToast({
+          type: "warning",
+          title: "Copy failed",
+          message: "Could not copy webhook URL.",
+        });
       }
     } catch (fallbackErr) {
       setCopyFeedback("Copy failed");
+      showToast({
+        type: "warning",
+        title: "Copy failed",
+        message: "Could not copy webhook URL.",
+      });
     }
   } finally {
     setTimeout(() => {
@@ -466,6 +493,7 @@ async function copyWebhookUrl() {
 
 let lastFocusedElement = null;
 let modalKeyHandler = null;
+let clearModalKeyHandler = null;
 
 function openResponseModal() {
   if (!responseModal || !responseModalBackdrop) return;
@@ -494,6 +522,66 @@ function closeResponseModal() {
   if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
     lastFocusedElement.focus();
   }
+}
+
+function openClearModal() {
+  if (!clearModal || !clearModalBackdrop) return;
+  lastFocusedElement = document.activeElement;
+  clearModal.hidden = false;
+  clearModalBackdrop.hidden = false;
+  if (cancelClearModalBtn) {
+    cancelClearModalBtn.focus();
+  }
+  clearModalKeyHandler = (event) => {
+    if (event.key === "Escape") {
+      closeClearModal();
+    }
+  };
+  document.addEventListener("keydown", clearModalKeyHandler);
+}
+
+function closeClearModal() {
+  if (!clearModal || !clearModalBackdrop) return;
+  clearModal.hidden = true;
+  clearModalBackdrop.hidden = true;
+  if (clearModalKeyHandler) {
+    document.removeEventListener("keydown", clearModalKeyHandler);
+    clearModalKeyHandler = null;
+  }
+  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+    lastFocusedElement.focus();
+  }
+}
+
+async function doClearRequests() {
+  try {
+    const res = await fetch(`/api/endpoints/${state.token}/clear`, { method: "POST" });
+    if (!res.ok) {
+      showToast({
+        type: "warning",
+        title: "Clear failed",
+        message: "Could not clear requests.",
+      });
+      return;
+    }
+    showToast({
+      type: "warning",
+      title: "Cleared",
+      message: "All requests were cleared.",
+    });
+  } catch (err) {
+    showToast({
+      type: "warning",
+      title: "Clear failed",
+      message: "Could not clear requests.",
+    });
+    return;
+  }
+  state.offset = 0;
+  setSelectedRequest(null);
+  listEl.innerHTML = "";
+  updateCount();
+  await fetchList(false);
 }
 
 async function loadResponseConfig() {
@@ -611,45 +699,58 @@ if (responseModalCard) {
   });
 }
 
+if (cancelClearModalBtn) {
+  cancelClearModalBtn.addEventListener("click", closeClearModal);
+}
+if (closeClearModalBtn) {
+  closeClearModalBtn.addEventListener("click", closeClearModal);
+}
+if (clearModalBackdrop) {
+  clearModalBackdrop.addEventListener("click", closeClearModal);
+}
+if (confirmClearModalBtn) {
+  confirmClearModalBtn.addEventListener("click", async () => {
+    await doClearRequests();
+    closeClearModal();
+  });
+}
+if (clearModalCard) {
+  clearModalCard.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+}
+
 exportBtn.addEventListener("click", () => {
   window.location.href = `/api/endpoints/${state.token}/export`;
 });
 
 clearBtn.addEventListener("click", async () => {
-  const ok = window.confirm("Clear all requests for this endpoint?");
-  if (!ok) return;
-  try {
-    const res = await fetch(`/api/endpoints/${state.token}/clear`, { method: "POST" });
-    if (!res.ok) {
-      showToast({
-        type: "warning",
-        title: "Clear failed",
-        message: "Could not clear requests.",
-      });
-      return;
-    }
-    showToast({
-      type: "warning",
-      title: "Cleared",
-      message: "All requests were cleared.",
-    });
-  } catch (err) {
-    showToast({
-      type: "warning",
-      title: "Clear failed",
-      message: "Could not clear requests.",
-    });
-    return;
-  }
-  state.offset = 0;
-  setSelectedRequest(null);
-  listEl.innerHTML = "";
-  updateCount();
-  await fetchList(false);
+  openClearModal();
 });
 
 loadMoreBtn.addEventListener("click", async () => {
-  await fetchList(true);
+  try {
+    const added = await fetchList(true);
+    if (added > 0) {
+      showToast({
+        type: "info",
+        title: "Loaded",
+        message: `Loaded ${added} new requests.`,
+      });
+    } else {
+      showToast({
+        type: "info",
+        title: "Loaded",
+        message: "No new requests to load.",
+      });
+    }
+  } catch (err) {
+    showToast({
+      type: "warning",
+      title: "Load failed",
+      message: "Could not load more requests.",
+    });
+  }
 });
 
 setResponseForm(
@@ -673,4 +774,10 @@ if (responseModal) {
 }
 if (responseModalBackdrop) {
   responseModalBackdrop.hidden = true;
+}
+if (clearModal) {
+  clearModal.hidden = true;
+}
+if (clearModalBackdrop) {
+  clearModalBackdrop.hidden = true;
 }

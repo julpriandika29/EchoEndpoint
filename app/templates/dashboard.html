@@ -94,10 +94,10 @@
         <header class="modal-header">
           <h3 id="response-modal-title">Response Settings</h3>
           <button class="ghost" id="close-response-settings" aria-label="Close">
-            ✕
+            X
           </button>
         </header>
-        <div class="modal-body">
+        <div class="modal-body scrollbar-hide">
           <div class="detail-card response-settings">
             <div class="card-head">
               <h4>Response Settings</h4>
@@ -117,7 +117,7 @@
                     <span class="filter-warning" id="status-search-warning" hidden>
                       Invalid regex; using starts-with
                     </span>
-                    <div class="dropdown-options" id="status-options"></div>
+                    <div class="dropdown-options scrollbar-hide" id="status-options"></div>
                   </div>
                 </details>
               </div>
@@ -134,7 +134,7 @@
                     <span class="filter-warning" id="content-type-search-warning" hidden>
                       Invalid regex; using contains
                     </span>
-                    <div class="dropdown-options" id="content-type-options"></div>
+                    <div class="dropdown-options scrollbar-hide" id="content-type-options"></div>
                   </div>
                 </details>
               </div>
@@ -152,8 +152,37 @@
       </div>
     </section>
 
+    <div class="modal-backdrop" id="clear-modal-backdrop" hidden></div>
+    <section
+      class="modal"
+      id="clear-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="clear-modal-title"
+      hidden
+    >
+      <div class="modal-card">
+        <header class="modal-header">
+          <h3 id="clear-modal-title">Clear Requests?</h3>
+          <button class="ghost" id="close-clear-modal" aria-label="Close">
+            X
+          </button>
+        </header>
+        <div class="modal-body scrollbar-hide">
+          <p class="modal-text">
+            This will remove all captured requests for this endpoint.
+          </p>
+          <div class="modal-actions">
+            <button class="ghost" id="cancel-clear-modal">Cancel</button>
+            <button class="danger" id="confirm-clear-modal">Clear</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
 
     <script src="/static/app.js"></script>
   </body>
 </html>
+
