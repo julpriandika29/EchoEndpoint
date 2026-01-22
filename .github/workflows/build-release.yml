@@ -21,37 +21,41 @@ jobs:
           VERSION="$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=release-$VERSION" >> "$GITHUB_ENV"
-      - name: Build in manylinux2014
+      - name: Build in Debian Python image
         run: |
           set -euxo pipefail
-          IMAGE="quay.io/pypa/manylinux_2_28_x86_64:latest"
+          IMAGE="python:3.11-slim-bullseye"
           docker pull "$IMAGE"
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work \
             -e CI=true \
+            -e HOME=/tmp \
             -e VERSION="${VERSION}" \
+            -e HOST_UID="$(id -u)" \
+            -e HOST_GID="$(id -g)" \
             "$IMAGE" \
             bash -lc '
               set -euxo pipefail
-              PY=/opt/python/cp311-cp311/bin/python
-              PIP=/opt/python/cp311-cp311/bin/pip
-              export LD_LIBRARY_PATH="/opt/python/cp311-cp311/lib:${LD_LIBRARY_PATH:-}"
-              ls -la /opt/python/cp311-cp311/lib/ | grep libpython || true
-              $PY -c "import sysconfig; print(sysconfig.get_config_var(\"LDLIBRARY\"), sysconfig.get_config_var(\"LIBDIR\"))"
-              $PIP install --upgrade pip
-              $PIP install -r requirements.txt
-              $PIP install pyinstaller
-              $PY -m PyInstaller --name echoendpoint --onedir \
+              apt-get update
+              apt-get install -y --no-install-recommends gcc g++ make patchelf binutils
+              rm -rf /var/lib/apt/lists/*
+              python -m venv /tmp/venv
+              . /tmp/venv/bin/activate
+              python -c "import sysconfig; print(\"LDLIBRARY=\", sysconfig.get_config_var(\"LDLIBRARY\")); print(\"LIBDIR=\", sysconfig.get_config_var(\"LIBDIR\"))"
+              pip install --upgrade pip
+              pip install -r requirements.txt
+              pip install pyinstaller
+              python -m PyInstaller --name echoendpoint --onedir \
                 --add-data "app/templates:app/templates" \
                 --add-data "app/static:app/static" \
                 app/cli.py
               TAR_NAME="echoendpoint-linux-amd64-${VERSION}.tar.gz"
               tar -czf "$TAR_NAME" -C dist echoendpoint
               dist/echoendpoint/echoendpoint --help || true
+              chown -R "${HOST_UID}:${HOST_GID}" /work/dist
+              chown "${HOST_UID}:${HOST_GID}" "/work/${TAR_NAME}"
             '
-          sudo chown -R "$(id -u):$(id -g)" dist
-          sudo chown "$(id -u):$(id -g)" "echoendpoint-linux-amd64-${VERSION}.tar.gz"
           echo "TAR_NAME=echoendpoint-linux-amd64-${VERSION}.tar.gz" >> "$GITHUB_ENV"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
