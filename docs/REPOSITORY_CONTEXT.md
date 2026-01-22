@@ -15,6 +15,7 @@
 - `app/`
 - `app/__init__.py` (package marker)
 - `app/main.py` (FastAPI app, routes, SSE, rate limiting)
+- `app/cli.py` (PyInstaller entry point that runs Uvicorn with env-configured host/port)
 - `app/db.py` (SQLite connection + schema creation)
 - `app/models.py` (field name lists, not referenced elsewhere)
 - `app/services/sse.py` (SSE broadcaster abstraction)
@@ -36,9 +37,11 @@
 - `uvicorn app.main:app --reload`
 - Environment variables/config: Not found (searched `README.md` and repo root for `.env` or config files).
 - Containerization/deployment: Not found (no `Dockerfile`, `docker-compose.yml`, or systemd/k8s manifests).
+- Release workflow: GitHub Actions workflow `/.github/workflows/build-release.yml` builds a Debian/Ubuntu-compatible Linux bundle via PyInstaller when pushing to the `release` branch, packages `dist/echoendpoint` into `echoendpoint-linux-amd64-<YYYYMMDD>-<shortsha>.tar.gz`, and publishes a GitHub Release with tag `release-<YYYYMMDD>-<shortsha>`.
 
 # Backend Architecture
 - App initialization: `app/main.py` creates `app = FastAPI()`, mounts static files, and registers templates.
+- Asset resolution: `app/main.py` uses a helper to resolve `app/static` and `app/templates` from `sys._MEIPASS` when running as a PyInstaller bundle, otherwise uses the source tree.
 - Routing: All routes are defined in `app/main.py` (no separate routers).
 - Models/validation: No Pydantic models; endpoints return dicts via `JSONResponse` and `HTTPException` for errors.
 - Error handling: Explicit 404/429 responses in handlers; no global exception handlers or middleware.

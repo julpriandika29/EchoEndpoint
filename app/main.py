@@ -3,6 +3,7 @@ import base64
 import json
 import secrets
 import sqlite3
+import sys
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
@@ -17,7 +18,14 @@ from fastapi.templating import Jinja2Templates
 from app.db import get_connection, init_db
 from app.services.sse import SSEBroadcaster
 
-APP_DIR = Path(__file__).resolve().parent
+
+def get_app_dir() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "app"
+    return Path(__file__).resolve().parent
+
+
+APP_DIR = get_app_dir()
 MAX_BODY_BYTES = 1_048_576
 
 
