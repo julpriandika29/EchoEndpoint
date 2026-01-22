@@ -52,7 +52,7 @@ jobs:
                 app/cli.py
               TAR_NAME="echoendpoint-linux-amd64-${VERSION}.tar.gz"
               tar -czf "$TAR_NAME" -C dist echoendpoint
-              dist/echoendpoint/echoendpoint --help || true
+              timeout 3s dist/echoendpoint/echoendpoint --help || true
               chown -R "${HOST_UID}:${HOST_GID}" /work/dist
               chown "${HOST_UID}:${HOST_GID}" "/work/${TAR_NAME}"
             '
