@@ -10,37 +10,46 @@ permissions:
 
 jobs:
   build-linux-amd64:
-    runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux2014_x86_64
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install dependencies
-        run: |
-          /opt/python/cp311-cp311/bin/pip install --upgrade pip
-          /opt/python/cp311-cp311/bin/pip install -r requirements.txt
-          /opt/python/cp311-cp311/bin/pip install pyinstaller
-      - name: Build bundle
-        run: |
-          /opt/python/cp311-cp311/bin/python -m PyInstaller --name echoendpoint --onedir \
-            --add-data "app/templates:app/templates" \
-            --add-data "app/static:app/static" \
-            app/cli.py
       - name: Compute version
         run: |
           VERSION="$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=release-$VERSION" >> "$GITHUB_ENV"
-      - name: Package artifact
+      - name: Build in manylinux2014
         run: |
-          TAR_NAME="echoendpoint-linux-amd64-${VERSION}.tar.gz"
-          tar -czf "$TAR_NAME" -C dist echoendpoint
-          echo "TAR_NAME=$TAR_NAME" >> "$GITHUB_ENV"
-      - name: Smoke check bundle
-        run: |
-          dist/echoendpoint/echoendpoint --help || true
+          set -euxo pipefail
+          IMAGE="quay.io/pypa/manylinux2014_x86_64:latest"
+          docker pull "$IMAGE"
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            -e CI=true \
+            -e VERSION="${VERSION}" \
+            "$IMAGE" \
+            bash -lc '
+              set -euxo pipefail
+              PY=/opt/python/cp311-cp311/bin/python
+              PIP=/opt/python/cp311-cp311/bin/pip
+              $PIP install --upgrade pip
+              $PIP install -r requirements.txt
+              $PIP install pyinstaller
+              $PY -m PyInstaller --name echoendpoint --onedir \
+                --add-data "app/templates:app/templates" \
+                --add-data "app/static:app/static" \
+                app/cli.py
+              TAR_NAME="echoendpoint-linux-amd64-${VERSION}.tar.gz"
+              tar -czf "$TAR_NAME" -C dist echoendpoint
+              dist/echoendpoint/echoendpoint --help || true
+            '
+          sudo chown -R "$(id -u):$(id -g)" dist
+          sudo chown "$(id -u):$(id -g)" "echoendpoint-linux-amd64-${VERSION}.tar.gz"
+          echo "TAR_NAME=echoendpoint-linux-amd64-${VERSION}.tar.gz" >> "$GITHUB_ENV"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
