@@ -11,23 +11,20 @@ permissions:
 jobs:
   build-linux-amd64:
     runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux2014_x86_64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          /opt/python/cp311-cp311/bin/pip install --upgrade pip
+          /opt/python/cp311-cp311/bin/pip install -r requirements.txt
+          /opt/python/cp311-cp311/bin/pip install pyinstaller
       - name: Build bundle
         run: |
-          pyinstaller --name echoendpoint --onedir \
+          /opt/python/cp311-cp311/bin/python -m PyInstaller --name echoendpoint --onedir \
             --add-data "app/templates:app/templates" \
             --add-data "app/static:app/static" \
             app/cli.py
@@ -41,6 +38,9 @@ jobs:
           TAR_NAME="echoendpoint-linux-amd64-${VERSION}.tar.gz"
           tar -czf "$TAR_NAME" -C dist echoendpoint
           echo "TAR_NAME=$TAR_NAME" >> "$GITHUB_ENV"
+      - name: Smoke check bundle
+        run: |
+          dist/echoendpoint/echoendpoint --help || true
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
