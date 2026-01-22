@@ -46,7 +46,9 @@ jobs:
               pip install --upgrade pip
               pip install -r requirements.txt
               pip install pyinstaller
+              python -c "import app.main"
               python -m PyInstaller --name echoendpoint --onedir \
+                --collect-submodules app \
                 --add-data "app/templates:app/templates" \
                 --add-data "app/static:app/static" \
                 app/cli.py

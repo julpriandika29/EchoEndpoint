@@ -25,7 +25,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_server(host: str, port: int) -> None:
-    uvicorn.run("app.main:app", host=host, port=port)
+    from app.main import app
+
+    uvicorn.run(app, host=host, port=port)
 
 
 def main(argv: Optional[List[str]] = None) -> None:
