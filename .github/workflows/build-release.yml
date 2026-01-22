@@ -24,7 +24,7 @@ jobs:
       - name: Build in manylinux2014
         run: |
           set -euxo pipefail
-          IMAGE="quay.io/pypa/manylinux2014_x86_64:latest"
+          IMAGE="quay.io/pypa/manylinux_2_28_x86_64:latest"
           docker pull "$IMAGE"
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/work" \
@@ -36,6 +36,9 @@ jobs:
               set -euxo pipefail
               PY=/opt/python/cp311-cp311/bin/python
               PIP=/opt/python/cp311-cp311/bin/pip
+              export LD_LIBRARY_PATH="/opt/python/cp311-cp311/lib:${LD_LIBRARY_PATH:-}"
+              ls -la /opt/python/cp311-cp311/lib/ | grep libpython || true
+              $PY -c "import sysconfig; print(sysconfig.get_config_var(\"LDLIBRARY\"), sysconfig.get_config_var(\"LIBDIR\"))"
               $PIP install --upgrade pip
               $PIP install -r requirements.txt
               $PIP install pyinstaller
