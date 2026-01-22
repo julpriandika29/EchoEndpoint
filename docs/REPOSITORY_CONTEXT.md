@@ -37,7 +37,7 @@
 - `uvicorn app.main:app --reload`
 - Environment variables/config: Not found (searched `README.md` and repo root for `.env` or config files).
 - Containerization/deployment: Not found (no `Dockerfile`, `docker-compose.yml`, or systemd/k8s manifests).
-- Release workflow: GitHub Actions workflow `/.github/workflows/build-release.yml` builds a Debian/Ubuntu-compatible Linux bundle via PyInstaller when pushing to the `release` branch, packages `dist/echoendpoint` into `echoendpoint-linux-amd64-<YYYYMMDD>-<shortsha>.tar.gz`, and publishes a GitHub Release with tag `release-<YYYYMMDD>-<shortsha>`.
+- Release workflow: GitHub Actions workflow `/.github/workflows/build-release.yml` builds a Debian/Ubuntu-compatible Linux bundle via PyInstaller inside a manylinux2014 (glibc 2.17) container when pushing to the `release` branch, packages `dist/echoendpoint` into `echoendpoint-linux-amd64-<YYYYMMDD>-<shortsha>.tar.gz`, and publishes a GitHub Release with tag `release-<YYYYMMDD>-<shortsha>`.
 
 # Backend Architecture
 - App initialization: `app/main.py` creates `app = FastAPI()`, mounts static files, and registers templates.
