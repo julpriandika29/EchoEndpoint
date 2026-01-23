@@ -49,6 +49,10 @@ const elements = {
   closeClearModalBtn: byId("close-clear-modal"),
   cancelClearModalBtn: byId("cancel-clear-modal"),
   confirmClearModalBtn: byId("confirm-clear-modal"),
+  mobileToggle: byId("mobile-toggle"),
+  mobileTabList: byId("mobile-tab-list"),
+  mobileTabDetail: byId("mobile-tab-detail"),
+  mobileBack: byId("mobile-back"),
 };
 
 const responseModalCard = document.querySelector("#response-modal .modal-card");
@@ -63,6 +67,7 @@ const requests = initRequests({
   state,
   selection,
   elements: {
+    root: document.body,
     listEl: elements.listEl,
     countEl: elements.countEl,
     detailEl: elements.detailEl,
@@ -75,9 +80,14 @@ const requests = initRequests({
     detailBody: elements.detailBody,
     detailBodyRaw: elements.detailBodyRaw,
     detailBodyMeta: elements.detailBodyMeta,
+    mobileToggle: elements.mobileToggle,
+    mobileTabList: elements.mobileTabList,
+    mobileTabDetail: elements.mobileTabDetail,
+    mobileBack: elements.mobileBack,
   },
   api,
 });
+requests.setupMobileToggle();
 
 const responseSettings = initResponseSettings({
   state,
