@@ -21,6 +21,8 @@ export function initRequests({ state, selection, elements, api }) {
   const rootEl = root || document.body;
   const mobileMedia = window.matchMedia("(max-width: 768px)");
   let currentView = "list";
+  const renderedIds = new Set();
+  let duplicateWarned = false;
 
   function formatTimestamp(iso) {
     if (!iso) return "unknown";
@@ -194,14 +196,31 @@ export function initRequests({ state, selection, elements, api }) {
     return card;
   }
 
+  function appendItem(item, position = "append") {
+    if (renderedIds.has(item.id)) {
+      if (!duplicateWarned) {
+        console.warn("Duplicate request id skipped in list rendering.");
+        duplicateWarned = true;
+      }
+      return false;
+    }
+    const node = buildListItem(item);
+    if (position === "prepend") {
+      listEl.prepend(node);
+    } else {
+      listEl.appendChild(node);
+    }
+    renderedIds.add(item.id);
+    return true;
+  }
+
   async function fetchList(append = true) {
     const data = await api.listRequests(state.token, state.limit, state.offset);
     if (!append) {
       listEl.innerHTML = "";
+      renderedIds.clear();
     }
-    data.items.forEach((item) => {
-      listEl.appendChild(buildListItem(item));
-    });
+    data.items.forEach((item) => appendItem(item, "append"));
     state.offset += data.items.length;
     updateCount();
     return data.items.length;
@@ -242,9 +261,11 @@ export function initRequests({ state, selection, elements, api }) {
       method: payload.method,
       path: payload.path,
     };
-    const node = buildListItem(item);
-    listEl.prepend(node);
-    updateCount();
+    const added = appendItem(item, "prepend");
+    if (added) {
+      state.offset += 1;
+      updateCount();
+    }
   }
 
   async function clearAllRequests() {
@@ -260,6 +281,7 @@ export function initRequests({ state, selection, elements, api }) {
     state.offset = 0;
     setSelectedRequest(null);
     listEl.innerHTML = "";
+    renderedIds.clear();
     updateCount();
     await fetchList(false);
     return true;
