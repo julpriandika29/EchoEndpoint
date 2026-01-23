@@ -1,5 +1,6 @@
 export function initRequests({ state, selection, elements, api }) {
   const {
+    root,
     listEl,
     countEl,
     detailEl,
@@ -12,7 +13,14 @@ export function initRequests({ state, selection, elements, api }) {
     detailBody,
     detailBodyRaw,
     detailBodyMeta,
+    mobileToggle,
+    mobileTabList,
+    mobileTabDetail,
+    mobileBack,
   } = elements;
+  const rootEl = root || document.body;
+  const mobileMedia = window.matchMedia("(max-width: 768px)");
+  let currentView = "list";
 
   function formatTimestamp(iso) {
     if (!iso) return "unknown";
@@ -57,17 +65,42 @@ export function initRequests({ state, selection, elements, api }) {
     clearDetailView();
   }
 
+  function updateMobileTabs(view) {
+    if (mobileTabList) {
+      mobileTabList.classList.toggle("active", view === "list");
+    }
+    if (mobileTabDetail) {
+      mobileTabDetail.classList.toggle("active", view === "detail");
+    }
+  }
+
+  function setView(view) {
+    currentView = view;
+    if (mobileMedia.matches) {
+      rootEl.dataset.view = view;
+    } else {
+      delete rootEl.dataset.view;
+    }
+    updateMobileTabs(view);
+  }
+
   function setSelectedRequest(requestId) {
     selection.selectionEpoch += 1;
     selection.selectedRequestId = requestId;
     setActiveItem(requestId);
     if (requestId === null) {
       showEmptyDetailState();
+      if (mobileMedia.matches) {
+        setView("list");
+      }
       return;
     }
     detailEmptyEl.hidden = true;
     detailEl.hidden = false;
     clearDetailView();
+    if (mobileMedia.matches) {
+      setView("detail");
+    }
   }
 
   async function selectRequest(requestId) {
@@ -174,6 +207,34 @@ export function initRequests({ state, selection, elements, api }) {
     return data.items.length;
   }
 
+  function setupMobileToggle() {
+    if (mobileTabList) {
+      mobileTabList.addEventListener("click", () => {
+        setView("list");
+      });
+    }
+    if (mobileTabDetail) {
+      mobileTabDetail.addEventListener("click", () => {
+        setView("detail");
+      });
+    }
+    if (mobileBack) {
+      mobileBack.addEventListener("click", () => {
+        setView("list");
+      });
+    }
+    mobileMedia.addEventListener("change", () => {
+      if (!mobileMedia.matches) {
+        delete rootEl.dataset.view;
+      } else {
+        setView(currentView || "list");
+      }
+    });
+    if (mobileMedia.matches) {
+      setView("list");
+    }
+  }
+
   function prependRequest(payload) {
     const item = {
       id: payload.id,
@@ -210,5 +271,6 @@ export function initRequests({ state, selection, elements, api }) {
     showEmptyDetailState,
     setSelectedRequest,
     clearAllRequests,
+    setupMobileToggle,
   };
 }

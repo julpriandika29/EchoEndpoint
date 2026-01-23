@@ -97,3 +97,17 @@
     transform: scaleX(0);
   }
 }
+
+@media (max-width: 600px) {
+  .toast-root {
+    left: 1rem;
+    right: 1rem;
+    top: auto;
+    bottom: 1rem;
+  }
+
+  .toast {
+    max-width: none;
+    width: 100%;
+  }
+}
